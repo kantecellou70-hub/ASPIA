@@ -49,3 +49,8 @@ app.*.map.json
 
 expo-env.d.ts
 # @end expo-cli
+
+# Build outputs
+dist/
+.expo/
+node_modules/
