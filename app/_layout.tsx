@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { authService } from '@/services/auth.service'
 import { useAuthStore } from '@/store/authStore'
 import { useSessionStore } from '@/store/sessionStore'
+import { ToastContainer } from '@/components/ui/Toast'
 
 export default function RootLayout() {
   const { setSession, setUser, setLoading } = useAuthStore()
@@ -41,6 +42,7 @@ export default function RootLayout() {
     <View style={styles.root}>
       <SafeAreaProvider>
         <StatusBar style="light" />
+        <ToastContainer />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
