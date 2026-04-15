@@ -34,13 +34,13 @@ Deno.serve(async (req) => {
       return json({ error: 'Non authentifié' }, 401)
     }
 
-    // Client utilisateur (anon key) — pour vérifier l'identité via le JWT
+    // Vérification identité via anon key + global header (pattern officiel Supabase)
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser()
     if (userError || !user) return json({ error: 'Non authentifié' }, 401)
 
     // Client admin (service role) — pour les requêtes DB sans RLS

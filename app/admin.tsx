@@ -106,10 +106,7 @@ export default function AdminDashboard() {
         body: { alert_threshold_usd: thresholdNum },
       })
       if (fnError) {
-        const ctx = (fnError as unknown as { context?: Response }).context
-        const status = ctx?.status ?? 'unknown'
-        console.error('[get-kpis] status:', status, '| error:', fnError)
-        throw new Error(`HTTP ${status} — ${fnError.message}`)
+        throw new Error(fnError.message)
       }
       setKpi(data as KpiData)
       setError(null)

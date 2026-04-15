@@ -61,21 +61,33 @@ Deno.serve(async (req) => {
     const validDifficulty = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium'
     const validCount = [5, 10, 20].includes(question_count) ? question_count : 10
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Non authentifié' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-    const authHeader = req.headers.get('Authorization')!
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', ''),
+    // Vérification identité via anon key + token (pattern officiel Supabase)
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser()
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Non authentifié' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // Client service role pour les requêtes DB
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
 
     // Récupère le circuit et ses étapes
     const { data: circuit, error: circuitError } = await supabase
