@@ -211,6 +211,7 @@ cp .env.example .env
 
 # Lancer le serveur de développement
 npx expo start
+npx expo start --clear
 
 # Dans le menu interactif :
 #   a  → Android (émulateur ou appareil connecté)

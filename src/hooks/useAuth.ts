@@ -16,13 +16,21 @@ export function useAuth() {
     try {
       const data = await authService.signIn(credentials)
       if (data.user) {
-        const profile = await authService.getProfile(data.user.id)
-        setUser(profile)
         setSession(data.session)
+        try {
+          const profile = await authService.getProfile(data.user.id)
+          setUser(profile)
+        } catch {
+          // Profil absent (migration non appliquée) — on navigue quand même
+        }
         router.replace('/(tabs)/home')
       }
-    } catch (err) {
-      showToast({ type: 'error', message: 'Email ou mot de passe incorrect' })
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message.includes('Email not confirmed')
+          ? 'Veuillez confirmer votre email avant de vous connecter'
+          : 'Email ou mot de passe incorrect'
+      showToast({ type: 'error', message })
     } finally {
       setIsSubmitting(false)
     }

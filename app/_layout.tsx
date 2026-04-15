@@ -22,10 +22,12 @@ export default function RootLayout() {
             setUser(profile)
             setSessionStats(profile.sessions_used, profile.sessions_limit)
           } catch {
+            // Profil absent ou table manquante — on garde la session active
             setUser(null)
           }
         } else {
           setUser(null)
+          setLoading(false)
         }
 
         setLoading(false)
