@@ -1,5 +1,32 @@
 export type QuestionType = 'multiple_choice' | 'true_false'
 export type QuizStatus = 'not_started' | 'in_progress' | 'completed'
+export type QuizDifficulty = 'easy' | 'medium' | 'hard'
+
+export interface QuizGenerationOptions {
+  difficulty: QuizDifficulty
+  questionCount: 5 | 10 | 20
+  /** IDs des questions précédemment échouées — pour un retry ciblé sur les lacunes */
+  weakQuestionIds?: string[]
+}
+
+export interface CourseSummarySection {
+  step_title: string
+  key_points: string[]
+  key_concepts: string[]
+}
+
+export interface CourseSummaryGlossaryEntry {
+  term: string
+  definition: string
+}
+
+export interface CourseSummary {
+  circuit_id: string
+  title: string
+  sections: CourseSummarySection[]
+  glossary: CourseSummaryGlossaryEntry[]
+  study_tips: string[]
+}
 
 export interface QuizOption {
   id: string

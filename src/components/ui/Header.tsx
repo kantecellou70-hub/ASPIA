@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, spacing } from '@/constants/theme'
 import { textStyles } from '@/constants/typography'
 import { layout } from '@/constants/layout'
+import { useUiStore } from '@/store/uiStore'
 
 interface HeaderProps {
   title: string
@@ -28,6 +29,7 @@ export function Header({
   style,
 }: HeaderProps) {
   const insets = useSafeAreaInsets()
+  const { isOnline } = useUiStore()
 
   function handleBack() {
     if (onBack) {
@@ -53,9 +55,17 @@ export function Header({
         )}
 
         <View style={styles.titleContainer}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            {!isOnline && (
+              <View style={styles.offlineBadge}>
+                <Ionicons name="cloud-offline-outline" size={11} color={colors.accent.warning} />
+                <Text style={styles.offlineLabel}>Hors-ligne</Text>
+              </View>
+            )}
+          </View>
           {subtitle && (
             <Text style={styles.subtitle} numberOfLines={1}>
               {subtitle}
@@ -98,9 +108,31 @@ const styles = StyleSheet.create({
   titleContainer: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   title: {
     ...textStyles.h4,
     color: colors.text.primary,
+  },
+  offlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  offlineLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.accent.warning,
+    letterSpacing: 0.3,
   },
   subtitle: {
     ...textStyles.bodySmall,

@@ -79,6 +79,15 @@ export default function ProfileScreen() {
         />
       </Card>
 
+      {/* Lien tableau de bord — visible uniquement pour les admins */}
+      {user?.role === 'admin' && (
+        <Card onPress={() => router.push('/admin')} style={styles.adminCard}>
+          <Ionicons name="bar-chart" size={20} color={colors.accent.secondary} />
+          <Text style={[styles.menuLabel, styles.adminLabel]}>Tableau de bord admin</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.accent.secondary} />
+        </Card>
+      )}
+
       {/* Menu */}
       <View style={styles.menu}>
         {[
@@ -185,5 +194,17 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.text.secondary,
     flex: 1,
+  },
+  adminCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+  },
+  adminLabel: {
+    color: colors.accent.secondary,
+    fontWeight: '600',
   },
 })

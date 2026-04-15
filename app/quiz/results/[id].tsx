@@ -6,21 +6,59 @@ import { colors, spacing } from '@/constants/theme'
 import { Header } from '@/components/ui/Header'
 import { Button } from '@/components/ui/Button'
 import { ScoreDisplay } from '@/components/features/ScoreDisplay'
+import { QuizSetupModal } from '@/components/features/QuizSetupModal'
 import { quizService } from '@/services/quiz.service'
+import { supabase } from '@/lib/supabase'
 import type { QuizResult } from '@/types/quiz.types'
 
 export default function QuizResultsScreen() {
   const { id: attemptId } = useLocalSearchParams<{ id: string }>()
   const insets = useSafeAreaInsets()
   const [result, setResult] = useState<QuizResult | null>(null)
+  const [circuitId, setCircuitId] = useState<string | null>(null)
+  const [circuitTitle, setCircuitTitle] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [showRetryModal, setShowRetryModal] = useState(false)
 
   useEffect(() => {
-    quizService
-      .getAttemptResult(attemptId)
-      .then(setResult)
-      .finally(() => setIsLoading(false))
+    async function load() {
+      try {
+        const [quizResult, attemptContext] = await Promise.all([
+          quizService.getAttemptResult(attemptId),
+          // Récupère le circuit_id depuis l'attempt → quiz → circuit
+          supabase
+            .from('quiz_attempts')
+            .select('quiz:quizzes(circuit_id, circuits:circuits(title))')
+            .eq('id', attemptId)
+            .single(),
+        ])
+
+        setResult(quizResult)
+
+        if (attemptContext.data) {
+          const quiz = attemptContext.data.quiz as unknown as {
+            circuit_id: string
+            circuits: { title: string }
+          } | null
+          if (quiz) {
+            setCircuitId(quiz.circuit_id)
+            setCircuitTitle(quiz.circuits?.title ?? '')
+          }
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    load()
   }, [attemptId])
+
+  // IDs des questions échouées pour le retry ciblé
+  const weakQuestionIds = result?.question_results
+    .filter((r) => !r.is_correct)
+    .map((r) => r.question_id) ?? []
+
+  const hasWeakAreas = weakQuestionIds.length > 0 && circuitId !== null
 
   if (isLoading) {
     return (
@@ -48,12 +86,33 @@ export default function QuizResultsScreen() {
           variant="secondary"
           fullWidth
         />
-        <Button
-          label="Refaire le quiz"
-          onPress={() => router.back()}
-          fullWidth
-        />
+
+        {hasWeakAreas ? (
+          <Button
+            label={`Réviser mes lacunes (${weakQuestionIds.length})`}
+            onPress={() => setShowRetryModal(true)}
+            fullWidth
+          />
+        ) : (
+          <Button
+            label="Nouveau quiz"
+            onPress={() => circuitId && setShowRetryModal(true)}
+            fullWidth
+            disabled={!circuitId}
+          />
+        )}
       </View>
+
+      {/* Modal pour configurer le quiz de retry (avec ou sans focus lacunes) */}
+      {circuitId && (
+        <QuizSetupModal
+          visible={showRetryModal}
+          circuitId={circuitId}
+          circuitTitle={circuitTitle}
+          weakQuestionIds={hasWeakAreas ? weakQuestionIds : undefined}
+          onClose={() => setShowRetryModal(false)}
+        />
+      )}
     </View>
   )
 }

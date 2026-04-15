@@ -5,13 +5,15 @@ import { aiService } from '@/services/ai.service'
 import { useAuthStore } from '@/store/authStore'
 import { useUploadStore } from '@/store/uploadStore'
 import { useUiStore } from '@/store/uiStore'
+import { useOfflineStore } from '@/store/offlineStore'
 import { useSession } from './useSession'
 
 export function useUpload() {
   const { user } = useAuthStore()
   const { selectedFile, progress, documents, setSelectedFile, setProgress, addDocument, setCurrentDocumentId, reset } =
     useUploadStore()
-  const { showToast } = useUiStore()
+  const { showToast, isOnline } = useUiStore()
+  const { enqueueUpload } = useOfflineStore()
   const { consumeSession } = useSession()
 
   const pickDocument = useCallback(async () => {
@@ -27,6 +29,18 @@ export function useUpload() {
 
   const startUpload = useCallback(async () => {
     if (!selectedFile || !user) return
+
+    // Mode hors-ligne : mettre en file d'attente
+    if (!isOnline) {
+      enqueueUpload({ file: selectedFile, userId: user.id })
+      showToast({
+        type: 'info',
+        message: 'Réseau indisponible — document mis en file d\'attente',
+      })
+      setProgress({ status: 'idle', step: '' })
+      setSelectedFile(null)
+      return
+    }
 
     const sessionGranted = await consumeSession()
     if (!sessionGranted) return
@@ -54,7 +68,7 @@ export function useUpload() {
       setProgress({ status: 'error', step: 'Une erreur est survenue' })
       showToast({ type: 'error', message: 'Échec du traitement du document' })
     }
-  }, [selectedFile, user, consumeSession, setProgress, addDocument, setCurrentDocumentId, showToast])
+  }, [selectedFile, user, isOnline, consumeSession, enqueueUpload, setProgress, setSelectedFile, addDocument, setCurrentDocumentId, showToast])
 
   return {
     selectedFile,

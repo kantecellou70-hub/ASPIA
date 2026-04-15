@@ -10,12 +10,14 @@ interface UiStore {
   isGlobalLoading: boolean
   toasts: Toast[]
   activeModal: string | null
+  isOnline: boolean
 
   setGlobalLoading: (loading: boolean) => void
   showToast: (toast: Omit<Toast, 'id'>) => void
   dismissToast: (id: string) => void
   openModal: (name: string) => void
   closeModal: () => void
+  setOnline: (online: boolean) => void
 }
 
 let toastCounter = 0
@@ -24,8 +26,10 @@ export const useUiStore = create<UiStore>((set) => ({
   isGlobalLoading: false,
   toasts: [],
   activeModal: null,
+  isOnline: true,
 
   setGlobalLoading: (isGlobalLoading) => set({ isGlobalLoading }),
+  setOnline: (isOnline) => set({ isOnline }),
 
   showToast: (toast) => {
     const id = String(++toastCounter)

@@ -83,6 +83,29 @@ export const AI_CONFIG = {
   ANALYSIS_TIMEOUT_MS: 120_000,
 } as const
 
+/**
+ * Estimation du coût Claude Opus 4.6 par opération (en USD).
+ * Basé sur : input $15/MTok, output $75/MTok.
+ * Ces valeurs sont des approximations pour le dashboard admin.
+ */
+export const CLAUDE_COST_USD = {
+  /** analyze-document + generate-circuit (PDF inclus, ~10k tokens in + 3k out) */
+  PER_CIRCUIT: 0.375,
+  /** generate-quiz (10 questions, ~2k in + 2k out) */
+  PER_QUIZ: 0.18,
+  /** generate-summary (~2k in + 1.5k out) */
+  PER_SUMMARY: 0.14,
+} as const
+
+/**
+ * Taux de conversion monétaire.
+ * 1 XOF ≈ 20 GNF (Franc guinéen) — taux indicatif.
+ */
+export const CURRENCY = {
+  XOF_TO_GNF: 20,
+  DEFAULT_ALERT_THRESHOLD_USD: 50,
+} as const
+
 export const APP_CONFIG = {
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',

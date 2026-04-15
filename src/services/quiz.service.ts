@@ -18,6 +18,8 @@ export const quizService = {
       .from('quizzes')
       .select('*, questions:quiz_questions(*, options:quiz_options(*))')
       .eq('circuit_id', circuitId)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (error) throw error
@@ -59,15 +61,67 @@ export const quizService = {
     return data as QuizResult
   },
 
+  /**
+   * Reconstruit le QuizResult depuis quiz_attempts + questions/options.
+   * La table quiz_results n'existe pas — on recalcule depuis les données stockées.
+   */
   async getAttemptResult(attemptId: string): Promise<QuizResult> {
-    const { data, error } = await supabase
-      .from('quiz_results')
-      .select('*')
-      .eq('attempt_id', attemptId)
+    // Récupère l'attempt avec les questions et leurs options correctes
+    const { data: attempt, error: attemptError } = await supabase
+      .from('quiz_attempts')
+      .select(`
+        id, score, answers, status, started_at, completed_at,
+        quiz:quizzes(
+          id, total_questions,
+          questions:quiz_questions(
+            id,
+            options:quiz_options(id, is_correct)
+          )
+        )
+      `)
+      .eq('id', attemptId)
       .single()
 
-    if (error) throw error
-    return data as QuizResult
+    if (attemptError || !attempt) throw attemptError ?? new Error('Tentative introuvable')
+
+    interface Option { id: string; is_correct: boolean }
+    interface QuestionWithOptions { id: string; options: Option[] }
+    interface QuizWithQuestions { id: string; total_questions: number; questions: QuestionWithOptions[] }
+
+    const quiz = attempt.quiz as unknown as QuizWithQuestions
+    const storedAnswers = attempt.answers as Record<string, string>
+
+    const questionResults = (quiz.questions ?? []).map((q: QuestionWithOptions) => {
+      const selectedOptionId = storedAnswers[q.id] ?? ''
+      const correctOption = q.options.find((o: Option) => o.is_correct)
+      return {
+        question_id: q.id,
+        is_correct: !!correctOption && selectedOptionId === correctOption.id,
+        selected_option_id: selectedOptionId,
+        correct_option_id: correctOption?.id ?? '',
+      }
+    })
+
+    const correctAnswers = questionResults.filter((r) => r.is_correct).length
+    const totalQuestions = quiz.total_questions || questionResults.length
+    const score = attempt.score
+
+    // Calcul de la durée depuis started_at / completed_at
+    const timeTakenSeconds = attempt.completed_at && attempt.started_at
+      ? Math.round(
+          (new Date(attempt.completed_at).getTime() - new Date(attempt.started_at).getTime()) / 1000,
+        )
+      : 0
+
+    return {
+      attempt_id: attemptId,
+      score,
+      total_questions: totalQuestions,
+      correct_answers: correctAnswers,
+      passed: score >= 70,
+      time_taken_seconds: timeTakenSeconds,
+      question_results: questionResults,
+    }
   },
 
   async getUserAttempts(userId: string): Promise<QuizAttempt[]> {

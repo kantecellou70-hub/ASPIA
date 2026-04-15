@@ -27,7 +27,7 @@ Application mobile d'apprentissage intelligent — transforme vos PDF en parcour
 ```
 APSIA/
 ├── app/                              # Routes Expo Router (file-based)
-│   ├── _layout.tsx                   # Root layout — providers + listener auth
+│   ├── _layout.tsx                   # Root layout — providers + listener auth + ToastContainer
 │   ├── index.tsx                     # Redirecteur auth/non-auth
 │   ├── (auth)/                       # Groupe écrans d'authentification
 │   │   ├── welcome.tsx               # Écran d'accueil
@@ -53,7 +53,7 @@ APSIA/
 │   │   │   ├── Input.tsx / Modal.tsx / Badge.tsx
 │   │   │   ├── ProgressBar.tsx / AnimatedCounter.tsx
 │   │   │   ├── Header.tsx / SafeArea.tsx
-│   │   │   └── …
+│   │   │   └── Toast.tsx             # Notifications système (succès, erreur, info)
 │   │   └── features/                 # Composants métier
 │   │       ├── CircuitCard.tsx
 │   │       ├── QuestionCard.tsx      # Rendu des questions de quiz
@@ -80,7 +80,7 @@ APSIA/
 │   │
 │   ├── lib/
 │   │   ├── supabase.ts               # Initialisation du client Supabase
-│   │   └── storage.ts                # Adaptateur AsyncStorage pour auth
+│   │   └── storage.ts                # Adaptateur AsyncStorage/localStorage pour auth
 │   │
 │   ├── services/                     # Logique métier
 │   │   ├── auth.service.ts           # Authentification (sign in/up, OAuth, sign out)
@@ -91,7 +91,7 @@ APSIA/
 │   │   └── profile.service.ts        # Gestion du profil utilisateur
 │   │
 │   ├── store/                        # Stores Zustand
-│   │   ├── authStore.ts              # État authentification
+│   │   ├── authStore.ts              # État auth (isAuthenticated basé sur session uniquement)
 │   │   ├── sessionStore.ts           # Quota de sessions
 │   │   ├── uploadStore.ts            # Progression d'upload
 │   │   └── uiStore.ts                # Toasts, modals
@@ -122,6 +122,7 @@ APSIA/
 │       └── _shared/cors.ts           # Utilitaires CORS partagés
 │
 ├── assets/                           # Icônes et splash screen
+├── vercel.json                       # Configuration déploiement web Vercel
 ├── app.json                          # Configuration Expo (bundle IDs, plugins)
 ├── eas.json                          # Profils de build EAS
 ├── tsconfig.json                     # TypeScript strict + alias @/* → src/*
@@ -201,7 +202,8 @@ Les PDF et la génération de contenu sont entièrement traités côté serveur 
 ### Démarrage rapide
 
 ```bash
-# Installer les dépendances
+# Cloner et installer les dépendances
+git clone <repo>
 cd APSIA
 npm install
 
@@ -210,7 +212,6 @@ cp .env.example .env
 # Remplir les valeurs dans .env (voir section ci-dessous)
 
 # Lancer le serveur de développement
-npx expo start
 npx expo start --clear
 
 # Dans le menu interactif :
@@ -225,8 +226,9 @@ Créez `.env` à la racine à partir de `.env.example` :
 
 ```env
 # Supabase (côté client — clé publique uniquement)
+# Récupérer sur : supabase.com/dashboard → Settings → API
 EXPO_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=votre-anon-key
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...   # commence toujours par eyJ
 
 # Kkiapay (clé publique uniquement)
 EXPO_PUBLIC_KKIAPAY_API_KEY=votre-cle-publique
@@ -242,19 +244,74 @@ supabase secrets set KKIAPAY_PUBLIC_KEY=...
 supabase secrets set KKIAPAY_SANDBOX=true
 ```
 
-### Déployer les migrations et les Edge Functions
+### Initialiser la base de données Supabase
+
+#### Option A — CLI (recommandé)
+```bash
+supabase db push
+```
+
+#### Option B — Dashboard SQL Editor
+Copier-coller le contenu de `supabase/migrations/20260414000000_init.sql` dans **SQL Editor → Run**.
+
+Si la migration a déjà été partiellement appliquée (erreur "relation already exists"), exécuter uniquement ce correctif pour créer le trigger et les profils manquants :
+
+```sql
+-- Recréer la fonction trigger
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, avatar_url)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    NEW.raw_user_meta_data->>'avatar_url'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+-- Recréer le trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Créer les profils pour les utilisateurs existants sans profil
+INSERT INTO public.profiles (id, full_name)
+SELECT id, COALESCE(raw_user_meta_data->>'full_name', '')
+FROM auth.users
+WHERE id NOT IN (SELECT id FROM public.profiles)
+ON CONFLICT (id) DO NOTHING;
+```
+
+### Déployer les Edge Functions
 
 ```bash
-# Appliquer le schéma de la base de données
-supabase db push
-
-# Déployer toutes les Edge Functions
 supabase functions deploy analyze-document
 supabase functions deploy generate-circuit
 supabase functions deploy generate-quiz
 supabase functions deploy submit-quiz
 supabase functions deploy initiate-payment
 supabase functions deploy verify-payment
+```
+
+---
+
+## Configuration Supabase (dashboard)
+
+### Authentication
+- **Authentication → Providers → Email** → désactiver **"Confirm email"** (pour le développement)
+- La clé **anon public** (Settings → API) est un JWT commençant par `eyJ...` — ne pas confondre avec d'autres types de clés
+
+### Confirmer manuellement un utilisateur existant
+Si un compte a été créé avant la désactivation de "Confirm email" :
+
+```sql
+UPDATE auth.users
+SET email_confirmed_at = NOW()
+WHERE email = 'utilisateur@exemple.com';
 ```
 
 ---
@@ -308,7 +365,6 @@ echo "no" | avdmanager create avd \
   -k "system-images;android-34;google_apis_playstore;x86_64" \
   -d "pixel_6"
 
-# Vérifier
 emulator -list-avds
 # → Pixel_API34
 ```
@@ -327,7 +383,7 @@ adb devices                           # → emulator-5554   device
 ```bash
 cd ~/Documents/Projets/APSIA
 fnm use 20
-npx expo start
+npx expo start --clear
 # Appuyer sur : a
 ```
 
@@ -339,7 +395,56 @@ npx expo start
 
 ---
 
-## Build production
+## Déploiement Web (Vercel)
+
+### Configuration (`vercel.json`)
+
+```json
+{
+  "buildCommand": "npx expo export --platform web",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": null,
+  "rewrites": [{ "source": "/:path*", "destination": "/index.html" }]
+}
+```
+
+Le dossier `dist/` est exclu du git (`.gitignore`) — Vercel exécute le build à chaque déploiement.
+
+### Variables d'environnement Vercel
+
+Dashboard → **Settings → Environment Variables** (toutes les envs) :
+
+| Variable | Valeur |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | URL du projet Supabase |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Clé anon `eyJ...` |
+| `EXPO_PUBLIC_KKIAPAY_API_KEY` | Clé publique Kkiapay |
+| `EXPO_PUBLIC_KKIAPAY_SANDBOX` | `true` |
+
+> Les variables `EXPO_PUBLIC_*` sont **injectées au moment du build**, pas au runtime. Tout changement de variable nécessite un redéploiement.
+
+### Déployer
+
+```bash
+# Via CLI
+npm i -g vercel
+vercel --prod
+
+# Via Git (recommandé) — déclenche un build automatique
+git push origin main
+```
+
+### Tester le build en local avant de déployer
+
+```bash
+npx expo export --platform web
+# → génère dist/ avec index.html + _expo/static/js/
+```
+
+---
+
+## Build production mobile
 
 ```bash
 # APK preview (Android)
@@ -376,3 +481,5 @@ Thème sombre (fond `#07101a`) avec composants glass-morphism.
 - **Interface utilisateur** en français (permissions iOS/Android localisées)
 - **RLS Supabase** : isolation stricte des données par utilisateur
 - **Sécurité** : clés Anthropic et Kkiapay privées exclusivement côté serveur (Edge Functions)
+- **`isAuthenticated`** : dérivé de la session Supabase uniquement (pas du profil) — évite les déconnexions si le profil est temporairement inaccessible
+- **Toast** : notifications système visibles via `useUiStore().showToast()`, rendu global dans `_layout.tsx`
