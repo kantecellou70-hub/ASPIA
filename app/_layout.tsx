@@ -77,6 +77,8 @@ export default function RootLayout() {
           <Stack.Screen name="admin" />
           <Stack.Screen name="admin-users" />
           <Stack.Screen name="admin-user/[id]" />
+          <Stack.Screen name="admin-payments" />
+          <Stack.Screen name="admin-payment/[id]" />
         </Stack>
       </SafeAreaProvider>
     </View>

@@ -342,13 +342,22 @@ export default function AdminDashboard() {
           </Card>
         )}
 
-        {/* ── CRM ───────────────────────────────────────────────────────── */}
+        {/* ── Navigation admin ───────────────────────────────────────────── */}
         <Pressable
           onPress={() => router.push('/admin-users')}
-          style={({ pressed }) => [styles.crmLink, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.navLink, pressed && { opacity: 0.7 }]}
         >
           <Ionicons name="people" size={18} color={colors.accent.secondary} />
-          <Text style={styles.crmLinkText}>Gestion des utilisateurs (CRM)</Text>
+          <Text style={[styles.navLinkText, { color: colors.accent.secondary }]}>Gestion des utilisateurs (CRM)</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push('/admin-payments')}
+          style={({ pressed }) => [styles.navLink, styles.navLinkPayments, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons name="card" size={18} color={colors.accent.success} />
+          <Text style={[styles.navLinkText, { color: colors.accent.success }]}>Paiements & réconciliation</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
         </Pressable>
 
@@ -625,7 +634,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  crmLink: {
+  navLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -635,9 +644,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
   },
-  crmLinkText: {
+  navLinkPayments: {
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  navLinkText: {
     ...textStyles.label,
-    color: colors.accent.secondary,
     flex: 1,
     fontWeight: '600',
   },

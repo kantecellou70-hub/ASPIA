@@ -13,6 +13,7 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
 
 const PLANS = ['free', 'starter', 'pro', 'enterprise'] as const
 const SESSION_LIMITS: Record<string, number> = {
@@ -25,6 +26,8 @@ const SESSION_LIMITS: Record<string, number> = {
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req)
   if (corsResponse) return corsResponse
+
+  const { ipAddress, userAgent } = extractRequestMeta(req)
 
   try {
     const body = await req.json().catch(() => ({}))
@@ -189,6 +192,10 @@ Deno.serve(async (req) => {
         .update({ plan: new_plan, sessions_limit: newLimit })
         .eq('id', user_id)
       if (updErr) throw updErr
+      writeAuditLog(supabase, {
+        userId: user.id, action: 'admin.change_plan', resourceType: 'user', resourceId: user_id,
+        metadata: { new_plan, sessions_limit: newLimit }, ipAddress, userAgent,
+      }).catch((e) => console.warn('audit failed:', e))
       return json({ success: true, plan: new_plan, sessions_limit: newLimit })
     }
 
@@ -211,6 +218,10 @@ Deno.serve(async (req) => {
         .update({ sessions_limit: newLimit })
         .eq('id', user_id)
       if (updErr) throw updErr
+      writeAuditLog(supabase, {
+        userId: user.id, action: 'admin.gift_sessions', resourceType: 'user', resourceId: user_id,
+        metadata: { sessions_added: sessions_to_add, new_limit: newLimit }, ipAddress, userAgent,
+      }).catch((e) => console.warn('audit failed:', e))
       return json({ success: true, sessions_limit: newLimit })
     }
 
@@ -223,6 +234,10 @@ Deno.serve(async (req) => {
       if (updErr) throw updErr
       // Optionnel : désactiver l'utilisateur dans auth.users
       await supabase.auth.admin.updateUserById(user_id, { ban_duration: '876600h' })
+      writeAuditLog(supabase, {
+        userId: user.id, action: 'admin.ban', resourceType: 'user', resourceId: user_id,
+        metadata: {}, ipAddress, userAgent,
+      }).catch((e) => console.warn('audit failed:', e))
       return json({ success: true, is_banned: true })
     }
 
@@ -234,6 +249,10 @@ Deno.serve(async (req) => {
         .eq('id', user_id)
       if (updErr) throw updErr
       await supabase.auth.admin.updateUserById(user_id, { ban_duration: 'none' })
+      writeAuditLog(supabase, {
+        userId: user.id, action: 'admin.unban', resourceType: 'user', resourceId: user_id,
+        metadata: {}, ipAddress, userAgent,
+      }).catch((e) => console.warn('audit failed:', e))
       return json({ success: true, is_banned: false })
     }
 

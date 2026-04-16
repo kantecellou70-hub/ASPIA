@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { router } from 'expo-router'
+import { supabase } from '@/lib/supabase'
 import { uploadService } from '@/services/upload.service'
 import { aiService } from '@/services/ai.service'
 import { useAuthStore } from '@/store/authStore'
@@ -55,6 +56,14 @@ export function useUpload() {
       )
       addDocument(document)
       setCurrentDocumentId(document.id)
+
+      // Chiffrement du PDF au repos (non-bloquant si échec — l'analyse continue)
+      setProgress({ status: 'uploading', progress: 90, step: 'Chiffrement du document...' })
+      try {
+        await supabase.functions.invoke('encrypt-document', { body: { document_id: document.id } })
+      } catch (encryptErr) {
+        console.warn('encrypt-document failed (non-blocking):', encryptErr)
+      }
 
       setProgress({ status: 'analyzing', progress: 0, step: 'Analyse IA du document...' })
       await aiService.analyzeDocument(document.id)

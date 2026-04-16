@@ -84,17 +84,27 @@ export const AI_CONFIG = {
 } as const
 
 /**
- * Estimation du coût Claude Opus 4.6 par opération (en USD).
- * Basé sur : input $15/MTok, output $75/MTok.
- * Ces valeurs sont des approximations pour le dashboard admin.
+ * Coûts Claude par opération (en USD).
+ * Circuit/Analyse : Claude Opus 4.6 ($15/MTok in, $75/MTok out)
+ * Quiz/Résumé     : Claude Sonnet 4.6 ($3/MTok in, $15/MTok out) — ~5x moins cher
  */
 export const CLAUDE_COST_USD = {
-  /** analyze-document + generate-circuit (PDF inclus, ~10k tokens in + 3k out) */
+  /** analyze-document (Opus) : ~8k tokens in + 0.5k out */
+  PER_ANALYSIS: 0.16,
+  /** generate-circuit (Opus) : ~10k tokens in + 3k out */
   PER_CIRCUIT: 0.375,
-  /** generate-quiz (10 questions, ~2k in + 2k out) */
-  PER_QUIZ: 0.18,
-  /** generate-summary (~2k in + 1.5k out) */
-  PER_SUMMARY: 0.14,
+  /** generate-quiz 10q (Sonnet) : ~4k in + 2k out */
+  PER_QUIZ: 0.042,
+  /** generate-summary (Sonnet) : ~3k in + 1.5k out */
+  PER_SUMMARY: 0.032,
+} as const
+
+/** Limites mensuelles de tokens par plan (input + output combinés). */
+export const MONTHLY_TOKEN_LIMITS = {
+  free:       100_000,
+  starter:    1_000_000,
+  pro:        5_000_000,
+  enterprise: -1,  // illimité
 } as const
 
 /**

@@ -17,6 +17,31 @@ const SESSIONS_BY_PLAN: Record<string, number> = {
   enterprise: 999999,
 }
 
+function detectOperator(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.startsWith('224') || digits.length === 9) {
+    const local = digits.length === 12 ? digits.slice(3) : digits
+    if (local.startsWith('62')) return 'Orange'
+    if (local.startsWith('66') || local.startsWith('65')) return 'MTN'
+  }
+  if (digits.startsWith('229') || digits.length === 8) {
+    const local = digits.length === 11 ? digits.slice(3) : digits
+    if (local.startsWith('96') || local.startsWith('97')) return 'MTN'
+    if (local.startsWith('94') || local.startsWith('95')) return 'Moov'
+  }
+  if (digits.startsWith('221')) {
+    const local = digits.slice(3)
+    if (local.startsWith('78') || local.startsWith('76')) return 'Wave'
+    if (local.startsWith('77')) return 'Orange'
+  }
+  if (digits.startsWith('225')) {
+    const local = digits.slice(3)
+    if (local.startsWith('05') || local.startsWith('07')) return 'MTN'
+    if (local.startsWith('08') || local.startsWith('09')) return 'Orange'
+  }
+  return 'Mobile Money'
+}
+
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req)
   if (corsResponse) return corsResponse
@@ -61,6 +86,7 @@ Deno.serve(async (req) => {
         currency: 'XOF',
         status: 'pending',
         phone,
+        operator: detectOperator(phone),
       })
       .select()
       .single()
