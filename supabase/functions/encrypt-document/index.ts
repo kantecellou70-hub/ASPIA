@@ -39,12 +39,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return jsonResp({ error: 'Non authentifié' }, 401)
 
-    const supabaseUser = createClient(
+    const userClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return jsonResp({ error: 'Non authentifié' }, 401)
 
     const supabase = createClient(

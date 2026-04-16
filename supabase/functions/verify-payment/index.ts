@@ -9,7 +9,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 
-const KKIAPAY_BASE_URL = 'https://api.kkiapay.me'
+const isSandboxMode = Deno.env.get('KKIAPAY_SANDBOX') === 'true'
+const KKIAPAY_BASE_URL = isSandboxMode
+  ? 'https://api-sandbox.kkiapay.me'
+  : 'https://api.kkiapay.me'
 
 const SESSIONS_BY_PLAN: Record<string, number> = {
   free: 3,
@@ -38,9 +41,12 @@ Deno.serve(async (req) => {
     )
 
     const authHeader = req.headers.get('Authorization')!
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', ''),
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Non authentifié' }), {
         status: 401,
@@ -76,8 +82,13 @@ Deno.serve(async (req) => {
     )
 
     if (!verifyRes.ok) {
-      const errBody = await verifyRes.text()
-      throw new Error(`Kkiapay verify erreur ${verifyRes.status} : ${errBody}`)
+      if (verifyRes.status === 404) {
+        throw new Error('Transaction introuvable chez Kkiapay. Vérifiez le transaction_id.')
+      }
+      if (verifyRes.status === 401 || verifyRes.status === 403) {
+        throw new Error('Clé API Kkiapay invalide. Contactez le support APSIA.')
+      }
+      throw new Error(`Impossible de vérifier le paiement (Kkiapay ${verifyRes.status}). Réessayez dans quelques minutes.`)
     }
 
     const kkiapayData = await verifyRes.json() as {

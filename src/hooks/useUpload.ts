@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { uploadService } from '@/services/upload.service'
-import { aiService } from '@/services/ai.service'
+import { aiService, EdgeFunctionError } from '@/services/ai.service'
 import { useAuthStore } from '@/store/authStore'
 import { useUploadStore } from '@/store/uploadStore'
 import { useUiStore } from '@/store/uiStore'
@@ -66,7 +66,11 @@ export function useUpload() {
       }
 
       setProgress({ status: 'analyzing', progress: 0, step: 'Analyse IA du document...' })
-      await aiService.analyzeDocument(document.id)
+      // analyze-document peuple les métadonnées mais n'est pas requis pour generate-circuit
+      // On le lance en non-bloquant pour ne pas bloquer le flux si la fonction échoue
+      aiService.analyzeDocument(document.id).catch((e) =>
+        console.warn('[analyze-document] non-blocking failure:', e instanceof Error ? e.message : e),
+      )
 
       setProgress({ status: 'generating', progress: 50, step: 'Génération du circuit...' })
       const circuit = await aiService.generateCircuit(document.id)
@@ -74,8 +78,25 @@ export function useUpload() {
       setProgress({ status: 'completed', progress: 100, step: 'Prêt !' })
       router.push(`/circuit/${circuit.id}`)
     } catch (err) {
-      setProgress({ status: 'error', step: 'Une erreur est survenue' })
-      showToast({ type: 'error', message: 'Échec du traitement du document' })
+      const message = err instanceof Error ? err.message : 'Une erreur est survenue'
+
+      if (err instanceof EdgeFunctionError && err.upgradeRequired) {
+        setProgress({ status: 'idle', step: '' })
+        showToast({ type: 'warning', message })
+        router.push('/payment/plans')
+        return
+      }
+
+      // Session expirée → redirige vers la connexion
+      if (err instanceof EdgeFunctionError && err.sessionExpired) {
+        setProgress({ status: 'idle', step: '' })
+        showToast({ type: 'warning', message })
+        router.replace('/(auth)/welcome')
+        return
+      }
+
+      setProgress({ status: 'error', step: message })
+      showToast({ type: 'error', message })
     }
   }, [selectedFile, user, isOnline, consumeSession, enqueueUpload, setProgress, setSelectedFile, addDocument, setCurrentDocumentId, showToast])
 

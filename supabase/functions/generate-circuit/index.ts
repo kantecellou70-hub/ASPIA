@@ -53,18 +53,32 @@ Deno.serve(async (req) => {
     )
 
     const authHeader = req.headers.get('Authorization')!
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', ''),
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return jsonResp({ error: 'Non authentifié' }, 401)
 
-    // Rate limiting
+    // Rate limiting + vérification sessions
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan')
+      .select('plan, sessions_used, sessions_limit')
       .eq('id', user.id)
       .single()
     const userPlan = profile?.plan ?? 'free'
+    const sessionsUsed = (profile?.sessions_used ?? 0) as number
+    const sessionsLimit = (profile?.sessions_limit ?? 3) as number
+
+    if (sessionsUsed >= sessionsLimit) {
+      return jsonResp({
+        error: 'Sessions épuisées. Passez à un plan supérieur.',
+        sessions_used: sessionsUsed,
+        sessions_limit: sessionsLimit,
+        upgrade_required: true,
+      }, 403)
+    }
 
     const rl = await checkRateLimit(supabase, user.id, 'circuit', userPlan)
     if (!rl.allowed) {
@@ -272,6 +286,14 @@ Structure JSON requise (5 à 8 étapes) :
       .select()
 
     if (stepsError) throw new Error(`Erreur insertion étapes : ${stepsError.message}`)
+
+    // Incrémente sessions_used côté serveur — source de vérité, non-bloquant
+    supabase
+      .from('profiles')
+      .update({ sessions_used: sessionsUsed + 1 })
+      .eq('id', user.id)
+      .then(() => {})
+      .catch((e: Error) => console.warn('session increment failed:', e))
 
     return jsonResp({ ...circuit, steps, _cached: false })
 

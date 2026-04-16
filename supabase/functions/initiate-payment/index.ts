@@ -69,9 +69,12 @@ Deno.serve(async (req) => {
     )
 
     const authHeader = req.headers.get('Authorization')!
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', ''),
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Non authentifié' }), {
         status: 401,
@@ -112,20 +115,26 @@ Deno.serve(async (req) => {
         reason: `APSIA — Plan ${plan_id}`,
         api_key: Deno.env.get('KKIAPAY_PUBLIC_KEY')!,
         phone,
-        sandbox: isSandbox,
+        sandbox: isSandboxMode,
         payment_id: payment.id,
       }),
     })
 
     if (!kkiapayRes.ok) {
-      const errBody = await kkiapayRes.text()
       // Marque le paiement en failed
       await supabase
         .from('payments')
         .update({ status: 'failed' })
         .eq('id', payment.id)
 
-      throw new Error(`Kkiapay erreur ${kkiapayRes.status} : ${errBody}`)
+      // Message d'erreur lisible selon le code HTTP
+      if (kkiapayRes.status === 404) {
+        throw new Error('Service Kkiapay indisponible (endpoint introuvable). Réessayez dans quelques minutes.')
+      }
+      if (kkiapayRes.status === 401 || kkiapayRes.status === 403) {
+        throw new Error('Clé API Kkiapay invalide. Contactez le support APSIA.')
+      }
+      throw new Error(`Impossible d'initier le paiement (Kkiapay ${kkiapayRes.status}). Réessayez ou contactez le support.`)
     }
 
     const kkiapayData = await kkiapayRes.json() as {

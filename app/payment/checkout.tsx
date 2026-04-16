@@ -37,10 +37,18 @@ export default function CheckoutScreen() {
 
     if (!transactionId) return
 
-    // Attendre la confirmation puis vérifier
-    const payment = await verifyPayment(transactionId)
-    if (payment?.status === 'completed') {
-      router.replace('/(tabs)/home')
+    // Poll jusqu'à confirmation (max ~90s) — l'utilisateur doit valider sur son téléphone
+    const MAX_ATTEMPTS = 9
+    const DELAY_MS = 10_000
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise((r) => setTimeout(r, DELAY_MS))
+      const payment = await verifyPayment(transactionId)
+      if (!payment) return // erreur gérée dans verifyPayment
+      if (payment.status === 'completed') {
+        router.replace('/(tabs)/home')
+        return
+      }
+      if (payment.status === 'failed') return
     }
   }
 

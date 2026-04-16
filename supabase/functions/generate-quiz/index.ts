@@ -78,12 +78,12 @@ Deno.serve(async (req) => {
     if (!authHeader) return jsonResp({ error: 'Non authentifié' }, 401)
 
     // Auth : token direct (pattern correct pour Edge Functions)
-    const supabaseUser = createClient(
+    const userClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
     )
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return jsonResp({ error: 'Non authentifié' }, 401)
 
     const supabase = createClient(
@@ -91,13 +91,24 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // ── Rate limiting ─────────────────────────────────────────────────────────
+    // ── Rate limiting + vérification sessions ───────────────────────────────
     const { data: profileRl } = await supabase
       .from('profiles')
-      .select('plan')
+      .select('plan, sessions_used, sessions_limit')
       .eq('id', user.id)
       .single()
     const userPlan = profileRl?.plan ?? 'free'
+    const sessionsUsed = (profileRl?.sessions_used ?? 0) as number
+    const sessionsLimit = (profileRl?.sessions_limit ?? 3) as number
+
+    if (sessionsUsed >= sessionsLimit) {
+      return jsonResp({
+        error: 'Sessions épuisées. Passez à un plan supérieur.',
+        sessions_used: sessionsUsed,
+        sessions_limit: sessionsLimit,
+        upgrade_required: true,
+      }, 403)
+    }
 
     const rl = await checkRateLimit(supabase, user.id, 'quiz', userPlan)
     if (!rl.allowed) {
@@ -288,6 +299,14 @@ Règles strictes :
       if (optError) throw new Error(`Erreur insertion options : ${optError.message}`)
       questionsWithOptions.push({ ...question, options })
     }
+
+    // Incrémente sessions_used côté serveur — source de vérité, non-bloquant
+    supabase
+      .from('profiles')
+      .update({ sessions_used: sessionsUsed + 1 })
+      .eq('id', user.id)
+      .then(() => {})
+      .catch((e: Error) => console.warn('session increment failed:', e))
 
     return jsonResp({ ...quiz, questions: questionsWithOptions })
 

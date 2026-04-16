@@ -124,11 +124,17 @@ export function useCircuit(circuitId?: string) {
       }
     })
 
+    // Calcule les nouveaux compteurs depuis l'état courant
+    const updatedSteps = (circuit?.steps ?? []).map((s) =>
+      s.id === stepId ? { ...s, is_completed: true } : s,
+    )
+    const newCompletedCount = updatedSteps.filter((s) => s.is_completed).length
+    const newStatus = newCompletedCount === (circuit?.total_steps ?? 0) ? 'completed' : 'in_progress'
+
     if (!isOnline) {
       // Mise en file d'attente pour sync ultérieure
       if (circuit?.id) {
         enqueuePendingStep({ stepId, circuitId: circuit.id })
-        // Persistance dans le cache local
         if (circuit?.id) patchCachedCircuitStep(circuit.id, stepId).catch(() => null)
       }
       showToast({ type: 'info', message: 'Progression enregistrée — synchronisation à la reconnexion' })
@@ -153,8 +159,13 @@ export function useCircuit(circuitId?: string) {
       return
     }
 
-    // Mise à jour du cache après succès
+    // Persiste le statut et le compteur du circuit en DB
     if (circuit?.id) {
+      await supabase
+        .from('circuits')
+        .update({ completed_steps: newCompletedCount, status: newStatus })
+        .eq('id', circuit.id)
+
       patchCachedCircuitStep(circuit.id, stepId).catch(() => null)
     }
   }, [showToast, isOnline, circuit, enqueuePendingStep])

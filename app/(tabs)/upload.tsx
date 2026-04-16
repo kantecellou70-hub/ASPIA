@@ -57,7 +57,7 @@ export default function UploadScreen() {
           {isError && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>
-                ❌ Une erreur est survenue. Réessayez.
+                ❌ {progress.step || 'Une erreur est survenue. Réessayez.'}
               </Text>
             </View>
           )}

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { invokeWithAuth, throwFromInvoke } from '@/lib/invoke'
 import type { InitiatePaymentParams, Payment } from '@/types/payment.types'
 
 /**
@@ -7,20 +8,14 @@ import type { InitiatePaymentParams, Payment } from '@/types/payment.types'
  */
 export const paymentService = {
   async initiate(params: InitiatePaymentParams): Promise<{ payment_id: string; transaction_id: string }> {
-    const { data, error } = await supabase.functions.invoke('initiate-payment', {
-      body: params,
-    })
-
-    if (error) throw error
+    const { data, error, response } = await invokeWithAuth('initiate-payment', params as unknown as Record<string, unknown>)
+    if (error || (data && 'error' in (data as object))) await throwFromInvoke(error, data, response)
     return data as { payment_id: string; transaction_id: string }
   },
 
   async verifyTransaction(transactionId: string): Promise<Payment> {
-    const { data, error } = await supabase.functions.invoke('verify-payment', {
-      body: { transaction_id: transactionId },
-    })
-
-    if (error) throw error
+    const { data, error, response } = await invokeWithAuth('verify-payment', { transaction_id: transactionId })
+    if (error || (data && 'error' in (data as object))) await throwFromInvoke(error, data, response)
     return data as Payment
   },
 

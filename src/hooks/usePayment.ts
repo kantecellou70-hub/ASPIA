@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { router } from 'expo-router'
 import { paymentService } from '@/services/payment.service'
 import { useAuthStore } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
+import { EdgeFunctionError } from '@/lib/invoke'
 import type { InitiatePaymentParams, Payment } from '@/types/payment.types'
 
 export function usePayment() {
@@ -10,6 +12,16 @@ export function usePayment() {
   const [isLoading, setIsLoading] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
 
+  function handlePaymentError(err: unknown, fallback: string) {
+    const message = err instanceof Error ? err.message : fallback
+    if (err instanceof EdgeFunctionError && err.sessionExpired) {
+      showToast({ type: 'warning', message })
+      router.replace('/(auth)/welcome')
+      return
+    }
+    showToast({ type: 'error', message })
+  }
+
   async function initiatePayment(params: InitiatePaymentParams): Promise<string | null> {
     if (!user) return null
     setIsLoading(true)
@@ -17,8 +29,8 @@ export function usePayment() {
       const { transaction_id } = await paymentService.initiate(params)
       showToast({ type: 'info', message: 'Paiement initié, vérification en cours...' })
       return transaction_id
-    } catch {
-      showToast({ type: 'error', message: 'Impossible d\'initier le paiement' })
+    } catch (err) {
+      handlePaymentError(err, 'Impossible d\'initier le paiement')
       return null
     } finally {
       setIsLoading(false)
@@ -33,8 +45,8 @@ export function usePayment() {
         showToast({ type: 'success', message: 'Paiement validé ! Votre plan a été mis à jour.' })
       }
       return payment
-    } catch {
-      showToast({ type: 'error', message: 'Impossible de vérifier le paiement' })
+    } catch (err) {
+      handlePaymentError(err, 'Impossible de vérifier le paiement')
       return null
     } finally {
       setIsLoading(false)

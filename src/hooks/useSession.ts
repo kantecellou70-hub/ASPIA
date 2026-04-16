@@ -24,14 +24,10 @@ export function useSession() {
       return false
     }
 
-    try {
-      await profileService.incrementSessionsUsed(user.id)
-      incrementUsed()
-      return true
-    } catch {
-      showToast({ type: 'error', message: 'Erreur lors de la consommation de session' })
-      return false
-    }
+    // Le décompte réel est géré côté serveur dans les Edge Functions.
+    // On fait uniquement une mise à jour optimiste du store pour l'UI.
+    incrementUsed()
+    return true
   }, [user, hasSessionsLeft, incrementUsed, showToast])
 
   const refreshStats = useCallback(async () => {
