@@ -14,7 +14,8 @@ Application mobile d'apprentissage intelligent — transforme vos PDF en parcour
 | Langage | TypeScript strict | ~5.9.2 |
 | État global | Zustand | ^5.0.12 |
 | Backend / Auth / DB | Supabase | ^2.103.0 |
-| IA / Analyse PDF | Claude Opus 4.6 (Anthropic) | API |
+| IA — analyse & circuit | Claude Opus 4.6 (Anthropic) | API |
+| IA — quiz & résumé | Claude Sonnet 4.6 (Anthropic) | API (~5x moins cher) |
 | Paiement | Kkiapay (Mobile Money XOF) | REST |
 | Animations | React Native Reanimated | 4.2.1 |
 | Icônes | @expo/vector-icons | ^15.1.1 |
@@ -41,9 +42,14 @@ APSIA/
 │   ├── circuit/[id].tsx              # Détail d'un circuit pédagogique
 │   ├── quiz/[id].tsx                 # Interface de passage d'un quiz
 │   ├── quiz/results/[id].tsx         # Résultats & feedback du quiz
-│   └── payment/
-│       ├── plans.tsx                 # Comparatif des plans tarifaires
-│       └── checkout.tsx              # Paiement Mobile Money (Kkiapay)
+│   ├── payment/
+│   │   ├── plans.tsx                 # Comparatif des plans tarifaires
+│   │   └── checkout.tsx              # Paiement Mobile Money (Kkiapay)
+│   ├── admin.tsx                     # Tableau de bord admin (KPIs)
+│   ├── admin-users.tsx               # CRM — liste utilisateurs avec filtres
+│   ├── admin-user/[id].tsx           # CRM — profil détaillé + actions admin
+│   ├── admin-payments.tsx            # Paiements & réconciliation
+│   └── admin-payment/[id].tsx        # Détail transaction + remboursement
 │
 ├── src/
 │   ├── components/
@@ -63,24 +69,29 @@ APSIA/
 │   │       ├── ScoreDisplay.tsx
 │   │       ├── SessionCounter.tsx
 │   │       ├── SocialLoginButton.tsx
-│   │       └── OptionButton.tsx
+│   │       ├── OptionButton.tsx
+│   │       ├── QuizSetupModal.tsx    # Sélection difficulté / nombre de questions
+│   │       ├── CourseSummaryModal.tsx# Résumé condensé d'un circuit
+│   │       ├── KpiCard.tsx           # Carte KPI admin
+│   │       └── RevenueChart.tsx      # Graphique revenus (admin)
 │   │
 │   ├── constants/
 │   │   ├── theme.ts                  # Design system — couleurs, espacements, ombres
 │   │   ├── typography.ts             # Styles typographiques
 │   │   ├── layout.ts                 # Utilitaires de mise en page
-│   │   └── config.ts                 # Feature flags, limites de sessions, clés API publiques
+│   │   └── config.ts                 # Plans, limites sessions, coûts IA, limites tokens
 │   │
 │   ├── types/                        # Interfaces TypeScript
 │   │   ├── auth.types.ts             # User, Session, LoginCredentials
 │   │   ├── circuit.types.ts          # Circuit, CircuitStep, Progress
-│   │   ├── quiz.types.ts             # Quiz, Question, Attempt
+│   │   ├── quiz.types.ts             # Quiz, Question, Attempt, CourseSummary
 │   │   ├── payment.types.ts          # Payment, Plan, intégration Kkiapay
 │   │   └── upload.types.ts           # DocumentFile, UploadProgress
 │   │
 │   ├── lib/
 │   │   ├── supabase.ts               # Initialisation du client Supabase
-│   │   └── storage.ts                # Adaptateur AsyncStorage/localStorage pour auth
+│   │   ├── storage.ts                # Adaptateur AsyncStorage/localStorage pour auth
+│   │   └── offlineCache.ts           # Cache local pour le mode hors-ligne
 │   │
 │   ├── services/                     # Logique métier
 │   │   ├── auth.service.ts           # Authentification (sign in/up, OAuth, sign out)
@@ -94,15 +105,18 @@ APSIA/
 │   │   ├── authStore.ts              # État auth (isAuthenticated basé sur session uniquement)
 │   │   ├── sessionStore.ts           # Quota de sessions
 │   │   ├── uploadStore.ts            # Progression d'upload
-│   │   └── uiStore.ts                # Toasts, modals
+│   │   ├── uiStore.ts                # Toasts, modals
+│   │   └── offlineStore.ts           # File d'attente uploads hors-ligne
 │   │
 │   ├── hooks/                        # Hooks personnalisés
 │   │   ├── useAuth.ts
-│   │   ├── useUpload.ts
+│   │   ├── useUpload.ts              # Upload + chiffrement + analyse IA
 │   │   ├── useCircuit.ts
 │   │   ├── useQuiz.ts
 │   │   ├── usePayment.ts
-│   │   └── useSession.ts
+│   │   ├── useSession.ts
+│   │   ├── useNetwork.ts             # Détection réseau (NetInfo)
+│   │   └── useOfflineSync.ts         # Synchronisation de la file hors-ligne
 │   │
 │   └── utils/
 │       ├── formatters.ts             # Formatage date, nombres, texte
@@ -111,15 +125,31 @@ APSIA/
 ├── supabase/
 │   ├── config.toml                   # Config Supabase local (ports, auth, storage)
 │   ├── migrations/
-│   │   └── 20260414000000_init.sql   # Schéma complet de la base de données
+│   │   ├── 20260414000000_init.sql              # Schéma complet de la base de données
+│   │   ├── 20260415000000_crm_fields.sql        # city, is_banned sur profiles
+│   │   ├── 20260415000001_payment_fields.sql    # operator, refund_reason, refunded_at sur payments
+│   │   ├── 20260415000002_ai_cost_optimization.sql  # ai_usage, ai_daily_costs, file_hash, RPCs
+│   │   └── 20260415000003_security_compliance.sql   # audit_logs, rate_limit_buckets, vault, RPCs
 │   └── functions/                    # Edge Functions Deno/TypeScript
-│       ├── analyze-document/         # Analyse PDF via Claude
-│       ├── generate-circuit/         # Génération du parcours pédagogique
-│       ├── generate-quiz/            # Génération des questions de quiz
+│       ├── _shared/
+│       │   ├── cors.ts               # Utilitaires CORS
+│       │   ├── ai-tracker.ts         # Cap mensuel tokens + enregistrement consommation
+│       │   ├── rate-limiter.ts       # Rate limiting par fenêtre glissante (PostgreSQL)
+│       │   ├── audit.ts              # Journaux d'audit (audit_logs)
+│       │   └── crypto.ts             # AES-256-GCM via Web Crypto API
+│       ├── analyze-document/         # Analyse PDF via Claude Opus (+ hash SHA-256 + déchiffrement)
+│       ├── generate-circuit/         # Circuit pédagogique — cache deux niveaux + Opus
+│       ├── generate-quiz/            # Quiz — Claude Sonnet (~5x moins cher)
+│       ├── generate-summary/         # Résumé condensé — Claude Sonnet
 │       ├── submit-quiz/              # Correction et calcul du score
-│       ├── initiate-payment/         # Initiation paiement Kkiapay
-│       ├── verify-payment/           # Vérification du statut de paiement
-│       └── _shared/cors.ts           # Utilitaires CORS partagés
+│       ├── initiate-payment/         # Initiation paiement Kkiapay + détection opérateur
+│       ├── verify-payment/           # Vérification statut + mise à jour plan
+│       ├── get-kpis/                 # KPIs admin (utilisateurs, revenus, IA)
+│       ├── admin-crm/                # CRM utilisateurs (list, detail, ban, plan…)
+│       ├── admin-payments/           # Paiements admin (list, refund, rapport mensuel)
+│       ├── check-daily-costs/        # Alerte webhook si coût journalier > seuil
+│       ├── encrypt-document/         # Chiffrement PDF au repos (AES-256-GCM + Vault)
+│       └── purge-expired-data/       # Purge RGPD (Storage + Vault + DB)
 │
 ├── assets/                           # Icônes et splash screen
 ├── vercel.json                       # Configuration déploiement web Vercel
@@ -137,15 +167,19 @@ Toutes les tables utilisent RLS (Row Level Security) — chaque utilisateur n'ac
 
 | Table | Description |
 |---|---|
-| `profiles` | Profil utilisateur (rôle, plan, quota sessions) |
-| `documents` | PDFs uploadés (URL storage, métadonnées) |
+| `profiles` | Profil utilisateur (rôle, plan, quota sessions, ville, rétention données) |
+| `documents` | PDFs uploadés (storage path, hash SHA-256, vault_key_id, is_encrypted) |
 | `circuits` | Parcours d'apprentissage générés par IA |
 | `circuit_steps` | Étapes d'un circuit (contenu, concepts-clés) |
 | `quizzes` | Évaluations associées à un circuit |
 | `quiz_questions` | Questions (QCM ou vrai/faux) |
 | `quiz_options` | Réponses possibles par question |
 | `quiz_attempts` | Tentatives utilisateur avec score et réponses (JSONB) |
-| `payments` | Historique des paiements (statut, transaction Kkiapay) |
+| `payments` | Historique des paiements (statut, opérateur, transaction Kkiapay, remboursement) |
+| `ai_usage` | Consommation tokens IA par utilisateur et par mois |
+| `ai_daily_costs` | Coûts journaliers globaux (pour alertes seuil) |
+| `audit_logs` | Journal d'accès et d'actions (qui, quoi, quand, IP) |
+| `rate_limit_buckets` | Compteurs de rate limiting par fenêtre glissante |
 
 **Bucket Storage** : `documents` — privé, limite 50 Mo, PDF uniquement, chemins isolés par utilisateur.
 
@@ -155,14 +189,18 @@ Toutes les tables utilisent RLS (Row Level Security) — chaque utilisateur n'ac
 
 Les PDF et la génération de contenu sont entièrement traités côté serveur via des **Supabase Edge Functions** — les clés Anthropic ne sont jamais exposées côté client.
 
-| Fonction | Entrée | Sortie | Modèle |
-|---|---|---|---|
-| `analyze-document` | `document_id` | Analyse structurée (titre, niveau, concepts) | Claude Opus 4.6 + vision PDF |
-| `generate-circuit` | `document_id` | Circuit + 5–8 étapes en base | Claude Opus 4.6 |
-| `generate-quiz` | `circuit_id` | Quiz + 5–10 questions en base | Claude Opus 4.6 |
-| `submit-quiz` | `attempt_id`, réponses | Score %, feedback détaillé | Logique interne |
-| `initiate-payment` | `plan_id`, montant, téléphone | ID transaction Kkiapay | Kkiapay REST |
-| `verify-payment` | `transaction_id` | Statut + mise à jour du plan | Kkiapay REST |
+| Fonction | Entrée | Sortie | Modèle | Note |
+|---|---|---|---|---|
+| `analyze-document` | `document_id` | Analyse structurée (titre, niveau, concepts) | Claude Opus 4.6 | Déchiffre le PDF si chiffré |
+| `generate-circuit` | `document_id` | Circuit + 5–8 étapes en base | Claude Opus 4.6 | Cache SHA-256 deux niveaux |
+| `generate-quiz` | `circuit_id` | Quiz + questions en base | Claude Sonnet 4.6 | ~5x moins cher qu'Opus |
+| `generate-summary` | `circuit_id` | Résumé condensé (JSON) | Claude Sonnet 4.6 | Non persisté — cache client |
+| `submit-quiz` | `attempt_id`, réponses | Score %, feedback | Logique interne | — |
+| `initiate-payment` | `plan_id`, montant, téléphone | ID transaction Kkiapay | Kkiapay REST | Détecte l'opérateur |
+| `verify-payment` | `transaction_id` | Statut + mise à jour du plan | Kkiapay REST | — |
+| `encrypt-document` | `document_id` | PDF chiffré dans Storage | Web Crypto AES-256-GCM | Clé dans Vault |
+| `purge-expired-data` | — | Suppression données expirées | — | RGPD, pg_cron mensuel |
+| `check-daily-costs` | — | Alerte webhook si seuil dépassé | — | pg_cron toutes les heures |
 
 ### Flux de traitement d'un document
 
@@ -171,21 +209,36 @@ Les PDF et la génération de contenu sont entièrement traités côté serveur 
 2. Upload Storage         → Supabase Storage (bucket documents)
 3. Insertion DB           → table documents
 4. Consommation session   → useSession.consumeSession()
-5. Analyse IA             → Edge Function analyze-document → Claude Opus 4.6
-6. Génération circuit     → Edge Function generate-circuit → table circuits + circuit_steps
-7. Redirection            → /circuit/[id]
+5. Chiffrement PDF        → Edge Function encrypt-document (AES-256-GCM + Vault)
+6. Analyse IA             → Edge Function analyze-document → Claude Opus 4.6
+7. Génération circuit     → Edge Function generate-circuit → table circuits + circuit_steps
+8. Redirection            → /circuit/[id]
 ```
+
+### Optimisation des coûts IA
+
+- **Claude Sonnet** pour quiz et résumés (~5x moins cher qu'Opus, qualité suffisante)
+- **Cache circuit** : deux niveaux — par `document_id`, puis par hash SHA-256 (re-uploads)
+- **Cap mensuel tokens** par plan (free: 100k, starter: 1M, pro: 5M, enterprise: illimité)
+- **Alerte coûts** : webhook (Slack/Discord/générique) si dépense journalière > seuil configuré
+
+### Sécurité & conformité
+
+- **Chiffrement PDF** : AES-256-GCM, clé stockée dans Supabase Vault (pgsodium)
+- **Rate limiting** : 3 fenêtres glissantes (minute/heure/jour) par plan et par opération
+- **Audit logs** : traçabilité de toutes les actions IA et admin (user_id, IP, action, statut)
+- **Rétention des données** : purge automatique configurable par utilisateur (`data_retention_months`)
 
 ---
 
 ## Plans & Sessions
 
-| Plan | Sessions/mois | Prix |
-|---|---|---|
-| Gratuit | 3 | 0 XOF |
-| Starter | 20 | 2 500 XOF/mois |
-| Pro | 100 | 7 500 XOF/mois |
-| Entreprise | Illimité | 25 000 XOF/mois |
+| Plan | Sessions/mois | Tokens IA/mois | Prix |
+|---|---|---|---|
+| Gratuit | 3 | 100 000 | 0 XOF |
+| Starter | 20 | 1 000 000 | 2 500 XOF/mois |
+| Pro | 100 | 5 000 000 | 7 500 XOF/mois |
+| Entreprise | Illimité | Illimité | 25 000 XOF/mois |
 
 ---
 
@@ -242,6 +295,11 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 supabase secrets set KKIAPAY_PRIVATE_KEY=...
 supabase secrets set KKIAPAY_PUBLIC_KEY=...
 supabase secrets set KKIAPAY_SANDBOX=true
+
+# Optionnel — alertes coûts IA
+supabase secrets set DAILY_COST_ALERT_THRESHOLD_USD=10
+supabase secrets set ALERT_WEBHOOK_URL=https://hooks.slack.com/...
+supabase secrets set ALERT_WEBHOOK_TYPE=slack   # slack | discord | generic
 ```
 
 ### Initialiser la base de données Supabase
@@ -252,12 +310,17 @@ supabase db push
 ```
 
 #### Option B — Dashboard SQL Editor
-Copier-coller le contenu de `supabase/migrations/20260414000000_init.sql` dans **SQL Editor → Run**.
+Exécuter les migrations dans l'ordre dans **SQL Editor → Run** :
 
-Si la migration a déjà été partiellement appliquée (erreur "relation already exists"), exécuter uniquement ce correctif pour créer le trigger et les profils manquants :
+1. `supabase/migrations/20260414000000_init.sql`
+2. `supabase/migrations/20260415000000_crm_fields.sql`
+3. `supabase/migrations/20260415000001_payment_fields.sql`
+4. `supabase/migrations/20260415000002_ai_cost_optimization.sql`
+5. `supabase/migrations/20260415000003_security_compliance.sql`
+
+Si la migration init a déjà été partiellement appliquée (erreur "relation already exists"), exécuter uniquement ce correctif pour recréer le trigger :
 
 ```sql
--- Recréer la fonction trigger
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -272,13 +335,11 @@ BEGIN
 END;
 $$;
 
--- Recréer le trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- Créer les profils pour les utilisateurs existants sans profil
 INSERT INTO public.profiles (id, full_name)
 SELECT id, COALESCE(raw_user_meta_data->>'full_name', '')
 FROM auth.users
@@ -289,12 +350,24 @@ ON CONFLICT (id) DO NOTHING;
 ### Déployer les Edge Functions
 
 ```bash
+# Fonctions core
 supabase functions deploy analyze-document
 supabase functions deploy generate-circuit
 supabase functions deploy generate-quiz
+supabase functions deploy generate-summary
 supabase functions deploy submit-quiz
 supabase functions deploy initiate-payment
 supabase functions deploy verify-payment
+
+# Fonctions admin
+supabase functions deploy get-kpis
+supabase functions deploy admin-crm
+supabase functions deploy admin-payments
+
+# Fonctions système
+supabase functions deploy encrypt-document
+supabase functions deploy purge-expired-data
+supabase functions deploy check-daily-costs
 ```
 
 ---
@@ -305,6 +378,10 @@ supabase functions deploy verify-payment
 - **Authentication → Providers → Email** → désactiver **"Confirm email"** (pour le développement)
 - La clé **anon public** (Settings → API) est un JWT commençant par `eyJ...` — ne pas confondre avec d'autres types de clés
 
+### Vault (chiffrement PDF)
+L'extension **Vault** (pgsodium) doit être activée dans **Database → Extensions → Vault**.
+Elle est activée par défaut sur Supabase Cloud.
+
 ### Confirmer manuellement un utilisateur existant
 Si un compte a été créé avant la désactivation de "Confirm email" :
 
@@ -312,6 +389,13 @@ Si un compte a été créé avant la désactivation de "Confirm email" :
 UPDATE auth.users
 SET email_confirmed_at = NOW()
 WHERE email = 'utilisateur@exemple.com';
+```
+
+### Passer un compte en admin
+```sql
+UPDATE public.profiles
+SET role = 'admin'
+WHERE id = (SELECT id FROM auth.users WHERE email = 'admin@exemple.com');
 ```
 
 ---
@@ -483,3 +567,5 @@ Thème sombre (fond `#07101a`) avec composants glass-morphism.
 - **Sécurité** : clés Anthropic et Kkiapay privées exclusivement côté serveur (Edge Functions)
 - **`isAuthenticated`** : dérivé de la session Supabase uniquement (pas du profil) — évite les déconnexions si le profil est temporairement inaccessible
 - **Toast** : notifications système visibles via `useUiStore().showToast()`, rendu global dans `_layout.tsx`
+- **Mode hors-ligne** : uploads mis en file d'attente dans `offlineStore` et synchronisés à la reconnexion via `useOfflineSync`
+- **Auth Edge Functions** : pattern `supabaseUser.auth.getUser(token)` avec token explicite (ne pas utiliser `getUser()` sans argument — la session n'est pas disponible côté serveur)
