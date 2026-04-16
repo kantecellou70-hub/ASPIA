@@ -8,7 +8,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 
-const KKIAPAY_BASE_URL = 'https://api.kkiapay.me'
+const isSandboxMode = Deno.env.get('KKIAPAY_SANDBOX') === 'true'
+const KKIAPAY_BASE_URL = isSandboxMode
+  ? 'https://api-sandbox.kkiapay.me'
+  : 'https://api.kkiapay.me'
 
 const SESSIONS_BY_PLAN: Record<string, number> = {
   free: 3,
@@ -97,7 +100,6 @@ Deno.serve(async (req) => {
 
     // Appel API Kkiapay
     const kkiapayKey = Deno.env.get('KKIAPAY_PRIVATE_KEY')!
-    const isSandbox = Deno.env.get('KKIAPAY_SANDBOX') === 'true'
 
     const kkiapayRes = await fetch(`${KKIAPAY_BASE_URL}/api/v1/transactions/xpay`, {
       method: 'POST',
