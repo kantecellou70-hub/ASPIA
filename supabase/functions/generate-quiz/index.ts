@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       .select('plan, sessions_used, sessions_limit')
       .eq('id', userId)
       .single()
-    const userPlan = profileRl?.plan ?? 'free'
+    const userPlan = profileRl?.plan ?? 'alpha'
     const sessionsUsed = (profileRl?.sessions_used ?? 0) as number
     const sessionsLimit = (profileRl?.sessions_limit ?? 3) as number
 
@@ -123,9 +123,9 @@ Deno.serve(async (req) => {
         used: cap.used,
         limit: cap.limit,
         plan: cap.plan,
-        upgrade_hint: cap.plan === 'free'
-          ? 'Passez au plan Starter pour 10x plus de tokens.'
-          : 'Contactez-nous pour augmenter votre quota.',
+        upgrade_hint: cap.plan === 'alpha'
+          ? 'Passe au plan Beta pour 10x plus de tokens.'
+          : 'Contacte-nous pour augmenter ton quota.',
       }, 429)
     }
 
@@ -177,7 +177,18 @@ Questions échouées :\n${weakList}`
     const message = await anthropic.messages.create({
       model: QUIZ_MODEL,
       max_tokens: 4096,
-      system: `Tu es un expert en évaluation pédagogique. Tu génères des quiz pertinents et calibrés.
+      system: `Tu es APSIA, assistant pédagogique intelligent conçu spécifiquement pour les élèves guinéens préparant le BEPC et le BAC.
+
+CONTEXTE ÉDUCATIF GUINÉEN :
+- Filières lycée : SM, SS, SE, A, B1, C, D
+- Matières BEPC : Mathématiques, Français, Sciences Physiques, Sciences Naturelles, Histoire-Géographie, Anglais, Éducation Civique
+- Inspire-toi des types de questions réelles posées aux examens BEPC et BAC guinéens
+- Cite les types de questions fréquentes aux examens nationaux (BEPC en juin, BAC en juillet)
+- Le taux de réussite au BAC est inférieur à 40% — calibre le niveau pour préparer efficacement
+- Adapte le vocabulaire au niveau scolaire de l'élève
+- Réponds TOUJOURS en français
+
+Tu génères des quiz pertinents et calibrés.
 Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour.`,
       messages: [{
         role: 'user',

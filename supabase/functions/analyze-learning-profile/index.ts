@@ -39,15 +39,26 @@ Deno.serve(async (req) => {
       difficulties?: string[]
     }
 
-    const { userId, error: authError } = await authenticateUser(supabase, req.headers.get('Authorization'))
-    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
-
+    // supabase MUST be created before authenticateUser
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const prompt = `Tu es un conseiller pédagogique. Analyse ce profil d'étudiant et génère des recommandations personnalisées.
+    const { userId, error: authError } = await authenticateUser(supabase, req.headers.get('Authorization'))
+    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
+
+    const prompt = `Tu es APSIA, conseiller pédagogique pour élèves guinéens préparant le BEPC et le BAC.
+
+CONTEXTE ÉDUCATIF GUINÉEN :
+- Filières lycée : SM, SS, SE, A, B1, C, D
+- Matières BEPC : Mathématiques, Français, Sciences Physiques, Sciences Naturelles, Histoire-Géographie, Anglais, Éducation Civique
+- BEPC en juin, BAC en juillet — adapte tes recommandations au calendrier scolaire guinéen
+- Le taux de réussite au BAC est inférieur à 40% — aide cet élève à faire partie des 40% qui réussissent
+- Adapte ton vocabulaire au niveau scolaire indiqué, encourage et motive l'élève
+- Réponds TOUJOURS en français
+
+Analyse ce profil d'élève et génère des recommandations personnalisées :
 
 Profil :
 - Niveau : ${profile.niveau ?? 'non précisé'}
@@ -64,10 +75,10 @@ Réponds UNIQUEMENT en JSON valide (sans markdown) :
   "strengths": ["force1", "force2", "force3"],
   "weaknesses": ["faiblesse1", "faiblesse2"],
   "recommendations": [
-    { "title": "Titre", "description": "Description courte", "priority": "high|medium|low" }
+    { "title": "Titre", "description": "Description courte adaptée au contexte guinéen", "priority": "high|medium|low" }
   ],
-  "study_plan": "Plan d'étude personnalisé en 2-3 phrases",
-  "motivational_message": "Message d'encouragement personnalisé"
+  "study_plan": "Plan d'étude personnalisé en 2-3 phrases, adapté au calendrier BEPC/BAC guinéen",
+  "motivational_message": "Message d'encouragement personnalisé, en tutoiement, adapté au contexte guinéen"
 }`
 
     const response = await anthropic.messages.create({

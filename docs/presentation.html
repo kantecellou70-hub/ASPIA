@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APSIA — Présentation du projet</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07101a;
+      --bg2:       #0a1628;
+      --card:      #0f2035;
+      --elevated:  #162840;
+      --blue:      #3b82f6;
+      --blue-dark: #2563eb;
+      --purple:    #8b5cf6;
+      --green:     #22c55e;
+      --amber:     #f59e0b;
+      --red:       #ef4444;
+      --cyan:      #06b6d4;
+      --text:      #f8fafc;
+      --text2:     #94a3b8;
+      --text3:     #475569;
+      --border:    #1e3a5f;
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Print ────────────────────────────────────────────────────── */
+    @media print {
+      body { background: #fff; color: #111; font-size: 11pt; }
+      .page { page-break-after: always; box-shadow: none !important; }
+      .page:last-child { page-break-after: auto; }
+      .no-print { display: none !important; }
+      a { color: inherit; text-decoration: none; }
+      :root {
+        --bg: #fff; --bg2: #f8f9fa; --card: #f1f5f9;
+        --blue: #2563eb; --purple: #7c3aed; --green: #16a34a;
+        --amber: #d97706; --red: #dc2626; --cyan: #0891b2;
+        --text: #111; --text2: #374151; --text3: #6b7280;
+        --border: #e2e8f0;
+      }
+      .hero { background: linear-gradient(135deg, #1e3a5f, #1e1b4b) !important; }
+      .badge { border: 1px solid currentColor; }
+      .card { border: 1px solid #e2e8f0 !important; }
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid #e2e8f0; }
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .page {
+      max-width: 900px;
+      margin: 0 auto 40px;
+      background: var(--bg2);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    section { padding: 48px 56px; }
+    section + section { border-top: 1px solid var(--border); }
+
+    h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; }
+    h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 24px; color: var(--text); }
+    h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: var(--blue); }
+    h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+    p  { color: var(--text2); line-height: 1.7; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Hero ─────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #0f2035 0%, #1a1040 50%, #0f2035 100%);
+      padding: 64px 56px 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: 40%;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px; height: 56px;
+      background: var(--blue);
+      border-radius: 14px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .hero h1 { background: linear-gradient(135deg, #f8fafc, #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 1.1rem; max-width: 600px; margin-top: 12px; color: #94a3b8; }
+    .hero-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .tag {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .tag-blue   { color: var(--blue);   border-color: rgba(59,130,246,0.4);   background: rgba(59,130,246,0.08); }
+    .tag-purple { color: var(--purple); border-color: rgba(139,92,246,0.4);   background: rgba(139,92,246,0.08); }
+    .tag-green  { color: var(--green);  border-color: rgba(34,197,94,0.4);    background: rgba(34,197,94,0.08); }
+    .tag-amber  { color: var(--amber);  border-color: rgba(245,158,11,0.4);   background: rgba(245,158,11,0.08); }
+    .tag-cyan   { color: var(--cyan);   border-color: rgba(6,182,212,0.4);    background: rgba(6,182,212,0.08); }
+
+    /* ── Cards grid ───────────────────────────────────────────────── */
+    .grid { display: grid; gap: 20px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .card-accent-blue   { border-left: 3px solid var(--blue); }
+    .card-accent-purple { border-left: 3px solid var(--purple); }
+    .card-accent-green  { border-left: 3px solid var(--green); }
+    .card-accent-amber  { border-left: 3px solid var(--amber); }
+    .card-accent-cyan   { border-left: 3px solid var(--cyan); }
+    .card-accent-red    { border-left: 3px solid var(--red); }
+
+    .card-icon { font-size: 1.6rem; margin-bottom: 12px; }
+    .card h3 { color: var(--text); font-size: 1rem; margin-bottom: 6px; }
+    .card p  { font-size: 0.88rem; color: var(--text3); margin: 0; }
+
+    /* ── Steps / Flow ─────────────────────────────────────────────── */
+    .flow { display: flex; flex-direction: column; gap: 0; }
+    .flow-step {
+      display: flex;
+      gap: 16px;
+      position: relative;
+    }
+    .flow-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 40px;
+      bottom: -4px;
+      width: 2px;
+      background: var(--border);
+    }
+    .flow-num {
+      flex-shrink: 0;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+    .flow-content { padding: 8px 0 28px; }
+    .flow-content strong { color: var(--text); font-size: 0.95rem; }
+    .flow-content span  { display: block; color: var(--text3); font-size: 0.83rem; margin-top: 2px; }
+
+    /* ── Table ────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead tr { background: var(--card); }
+    th { text-align: left; padding: 12px 16px; color: var(--text2); font-weight: 600; border-bottom: 2px solid var(--border); }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text2); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .pill-blue   { background: rgba(59,130,246,0.15);  color: var(--blue); }
+    .pill-purple { background: rgba(139,92,246,0.15); color: var(--purple); }
+    .pill-green  { background: rgba(34,197,94,0.15);  color: var(--green); }
+    .pill-amber  { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .pill-cyan   { background: rgba(6,182,212,0.15);  color: var(--cyan); }
+    .pill-gray   { background: rgba(100,116,139,0.2); color: var(--text2); }
+
+    /* ── Divider ──────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── List ─────────────────────────────────────────────────────── */
+    ul.styled { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    ul.styled li { display: flex; align-items: flex-start; gap: 10px; color: var(--text2); font-size: 0.9rem; }
+    ul.styled li::before { content: '→'; color: var(--blue); flex-shrink: 0; font-weight: 700; }
+
+    /* ── KPI row ──────────────────────────────────────────────────── */
+    .kpi-row { display: flex; gap: 16px; }
+    .kpi {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .kpi-value { font-size: 2rem; font-weight: 800; color: var(--blue); }
+    .kpi-label { font-size: 0.78rem; color: var(--text3); margin-top: 4px; }
+
+    /* ── Section title accent ─────────────────────────────────────── */
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 10px;
+    }
+    .section-label::before { content: ''; display: block; width: 20px; height: 2px; background: var(--blue); }
+
+    /* ── Print button ─────────────────────────────────────────────── */
+    .print-btn {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(59,130,246,0.4);
+      z-index: 100;
+    }
+    .print-btn:hover { background: var(--blue-dark); }
+
+    /* ── Architecture diagram ─────────────────────────────────────── */
+    .arch {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      color: var(--text2);
+      line-height: 1.8;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    .footer {
+      padding: 24px 56px;
+      text-align: center;
+      color: var(--text3);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  PAGE 1 — Couverture + Vision + Marché + Objectifs             -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="hero">
+    <div class="hero-logo">A</div>
+    <h1>APSIA</h1>
+    <p>Plateforme d'apprentissage intelligente pour élèves guinéens — transforme PDF et photos de cours en parcours pédagogiques IA avec quiz adaptatifs, assistant conversationnel et suivi de progression.</p>
+    <div class="hero-tags">
+      <span class="tag tag-blue">React Native · Expo</span>
+      <span class="tag tag-purple">Claude Sonnet / Opus</span>
+      <span class="tag tag-green">Supabase · PostgreSQL</span>
+      <span class="tag tag-amber">Kkiapay · Mobile Money</span>
+      <span class="tag tag-cyan">Guinée · Afrique de l'Ouest</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-label">Problème &amp; Vision</div>
+    <h2>Pourquoi APSIA ?</h2>
+    <div class="grid grid-2" style="gap:16px; margin-bottom:28px;">
+      <div class="card card-accent-red">
+        <div class="card-icon">😓</div>
+        <h3>Le problème</h3>
+        <p>300 000 élèves guinéens préparent chaque année le BEPC et le BAC sans accès à des outils structurés — pas de répétiteur abordable, pas de sujets corrigés intelligents, pas de suivi personnalisé.</p>
+      </div>
+      <div class="card card-accent-blue">
+        <div class="card-icon">🚀</div>
+        <h3>La solution</h3>
+        <p>APSIA analyse automatiquement un PDF ou une photo de cours et génère un parcours complet : circuit structuré, quiz adaptatifs, résumés condensés et assistant IA disponible 24h/24 pour 20 000 GNF/mois.</p>
+      </div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-value">30s</div>
+        <div class="kpi-label">De PDF à Circuit IA</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value" style="font-size:1.25rem;">50 000 GNF</div>
+        <div class="kpi-label">Prix répétiteur traditionnel — APSIA coûte 2,5× moins</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value" style="font-size:1.5rem;">5 plans</div>
+        <div class="kpi-label">Alpha → École Gamma</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value" style="font-size:1.4rem;">300 000</div>
+        <div class="kpi-label">Candidats au BAC/BEPC par an en Guinée</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Marché cible</div>
+    <h2>Qui utilise APSIA ?</h2>
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-icon">📖</div>
+        <h3>Élèves BEPC (6ème → 3ème)</h3>
+        <p>300 000 candidats au BEPC chaque année en Guinée. APSIA leur donne accès à 10 ans de sujets corrigés et un répétiteur IA disponible 24h/24.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎓</div>
+        <h3>Lycéens BAC (2nde → Terminale)</h3>
+        <p>Filières SM, SS, SE, A, B1, C, D. Circuits d'apprentissage alignés sur le programme officiel MEN Guinée avec prédiction des sujets probables.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏫</div>
+        <h3>Établissements scolaires</h3>
+        <p>Lycées et collèges : dashboard proviseur, suivi par classe, rapports mensuels PDF automatiques. Tarif école dès 15 000 GNF/élève/mois.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Croissance</div>
+    <h2>Objectifs de croissance</h2>
+    <table>
+      <thead>
+        <tr><th>Période</th><th>Inscrits</th><th>Payants</th><th>MRR cible</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill pill-gray">J+7</span></td>
+          <td>200</td>
+          <td>20</td>
+          <td><strong>400 000 GNF</strong></td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-blue">Mois 1</span></td>
+          <td>500</td>
+          <td>50 + 1 école</td>
+          <td><strong>2 800 000 GNF</strong></td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-purple">Mois 6</span></td>
+          <td>3 000</td>
+          <td>300 + 5 écoles</td>
+          <td><strong>15 000 000 GNF</strong></td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-amber">Mois 12</span></td>
+          <td>10 000</td>
+          <td>1 000 + 15 écoles</td>
+          <td><strong>50 000 000 GNF</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="footer">Confidentiel · APSIA · Conakry, Guinée · 2026</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  PAGE 2 — Fonctionnalités + Navigation                         -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <section>
+    <div class="section-label">Fonctionnalités</div>
+    <h2>Ce que fait APSIA</h2>
+    <div class="grid grid-2">
+      <div class="card card-accent-blue">
+        <div class="card-icon">💬</div>
+        <h3>Chat IA &amp; Import multimédia</h3>
+        <p>Interface conversationnelle complète. Import PDF (50 Mo max) ou photo de cours manuscrit avec OCR automatique. Détection d'intention : APSIA comprend ce que l'élève veut faire et propose l'action correspondante.</p>
+      </div>
+      <div class="card card-accent-purple">
+        <div class="card-icon">🗺️</div>
+        <h3>Circuits d'apprentissage</h3>
+        <p>5 à 8 étapes pédagogiques structurées avec contenu détaillé (200–400 mots) et concepts-clés par étape. Cache SHA-256 pour éviter la re-génération.</p>
+      </div>
+      <div class="card card-accent-green">
+        <div class="card-icon">🧪</div>
+        <h3>Quiz adaptatifs</h3>
+        <p>QCM à difficulté calibrée (facile / moyen / difficile), 5–20 questions. Ciblage des lacunes — les questions ratées génèrent automatiquement de nouvelles questions sur les mêmes concepts.</p>
+      </div>
+      <div class="card card-accent-amber">
+        <div class="card-icon">📝</div>
+        <h3>Résumés condensés</h3>
+        <p>Résumé 1-page par circuit : points essentiels par étape, glossaire 5–10 termes, conseils d'étude spécifiques au contenu.</p>
+      </div>
+      <div class="card card-accent-cyan">
+        <div class="card-icon">💡</div>
+        <h3>Assistant Chat IA</h3>
+        <p>Conversation naturelle avec APSIA. Détection d'intention : répond aux questions, génère un circuit, lance un quiz ou produit un résumé selon le message.</p>
+      </div>
+      <div class="card card-accent-red">
+        <div class="card-icon">🧠</div>
+        <h3>Profil adaptatif</h3>
+        <p>Onboarding 3 étapes (niveau, filière, style d'apprentissage). Analyse IA du profil → forces, faiblesses, conseils personnalisés. Dashboard mis à jour automatiquement après chaque quiz. Tag de personnalité unique pour chaque élève.</p>
+      </div>
+      <div class="card card-accent-amber" style="grid-column: span 2;">
+        <div class="card-icon">🏛️</div>
+        <h3>Bibliothèque BEPC/BAC</h3>
+        <p>400+ sujets d'examens guinéens classés par matière, filière et année (2010–2025). Corrigés intelligents générés par Claude. Circuit de révision associé à chaque sujet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Navigation</div>
+    <h2>Structure de l'application</h2>
+    <div class="grid grid-4">
+      <div class="card" style="text-align:center; padding:20px 12px;">
+        <div style="font-size:1.8rem; margin-bottom:8px;">🏠</div>
+        <h3 style="font-size:0.88rem;">Accueil</h3>
+        <p>Dashboard + onboarding adaptatif</p>
+      </div>
+      <div class="card" style="text-align:center; padding:20px 12px; border-color: var(--blue);">
+        <div style="font-size:1.8rem; margin-bottom:8px;">💬</div>
+        <h3 style="font-size:0.88rem;">Chat</h3>
+        <p>Point d'entrée principal — import, génération, questions</p>
+      </div>
+      <div class="card" style="text-align:center; padding:20px 12px;">
+        <div style="font-size:1.8rem; margin-bottom:8px;">📚</div>
+        <h3 style="font-size:0.88rem;">Bibliothèque</h3>
+        <p>Documents &amp; circuits</p>
+      </div>
+      <div class="card" style="text-align:center; padding:20px 12px;">
+        <div style="font-size:1.8rem; margin-bottom:8px;">👤</div>
+        <h3 style="font-size:0.88rem;">Profil</h3>
+        <p>Plan, quota, historique</p>
+      </div>
+    </div>
+    <p style="margin-top:16px; font-size:0.85rem; color:var(--text3);">
+      Le chat est le point d'entrée principal pour toutes les actions : import, génération, questions.
+      &nbsp;·&nbsp; Routes directes :
+      <code style="background:var(--card);padding:2px 6px;border-radius:4px;">/chat</code>
+      &nbsp;<code style="background:var(--card);padding:2px 6px;border-radius:4px;">/circuit/[id]</code>
+      &nbsp;<code style="background:var(--card);padding:2px 6px;border-radius:4px;">/quiz/[id]</code>
+      &nbsp;<code style="background:var(--card);padding:2px 6px;border-radius:4px;">/payment/checkout</code>
+    </p>
+  </section>
+
+  <div class="footer">Confidentiel · APSIA · Conakry, Guinée · 2026</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  PAGE 3 — Logique de fonctionnement                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <section>
+    <div class="section-label">Logique de fonctionnement</div>
+    <h2>Flux principal — De PDF à circuit</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Sélection du PDF</strong>
+          <span>L'utilisateur sélectionne un fichier (max 50 Mo). Validation format + taille côté client.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Upload &amp; chiffrement</strong>
+          <span>Upload vers Supabase Storage → chiffrement AES-256-GCM (Edge Function <em>encrypt-document</em>). Clé stockée dans Supabase Vault.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Analyse IA</strong>
+          <span>Edge Function <em>analyze-document</em> → Claude Opus lit le PDF chiffré et retourne titre, matière, niveau, concepts-clés, résumé.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Vérification cache</strong>
+          <span>Hash SHA-256 calculé. Si un circuit identique existe déjà (même document ou même hash) → retour immédiat sans appel IA.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <strong>Génération du circuit</strong>
+          <span>Edge Function <em>generate-circuit</em> → Claude Opus génère 5–8 étapes structurées et les persiste en base (tables <em>circuits</em> + <em>circuit_steps</em>).</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--green);">✓</div>
+        <div class="flow-content">
+          <strong>Redirection vers le circuit</strong>
+          <span>L'utilisateur atterrit sur <code>/circuit/[id]</code> et peut immédiatement commencer à apprendre.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Flux alternatif</div>
+    <h2>Flux alternatif — Via Chat ou Photo</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--cyan);">1</div>
+        <div class="flow-content">
+          <strong>Photo de cours manuscrit</strong>
+          <span>OCR automatique → extraction du texte du cours à partir d'une photo prise depuis le téléphone.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--cyan);">2</div>
+        <div class="flow-content">
+          <strong>OU — Message dans le Chat</strong>
+          <span>Détection d'intention par Claude Sonnet — APSIA comprend la demande et propose l'action appropriée.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--cyan);">3</div>
+        <div class="flow-content">
+          <strong>OU — PDF importé depuis le Chat</strong>
+          <span>Même flux que le flux principal, déclenché directement depuis la conversation sans passer par l'écran d'upload.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--purple);">4</div>
+        <div class="flow-content">
+          <strong>Action proposée</strong>
+          <span>Selon le contenu détecté : génération de circuit · lancement de quiz · production de résumé · réponse directe.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--green);">5</div>
+        <div class="flow-content">
+          <strong>Carte cliquable dans la conversation</strong>
+          <span>Le résultat s'affiche comme une carte interactive dans le chat — l'élève clique pour accéder directement au contenu généré.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Flux secondaires</div>
+    <h2>Onboarding adaptatif</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--amber); width:32px;height:32px;font-size:0.8rem;">1</div>
+        <div class="flow-content" style="padding-bottom:18px;">
+          <strong>3 étapes questionnaire</strong>
+          <span>Niveau · filière · style d'apprentissage · temps disponible · matières · difficultés.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--amber); width:32px;height:32px;font-size:0.8rem;">2</div>
+        <div class="flow-content" style="padding-bottom:18px;">
+          <strong>Analyse IA (timeout 20s)</strong>
+          <span>Claude Sonnet génère forces, faiblesses, plan d'étude personnalisé et message motivationnel.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:var(--amber); width:32px;height:32px;font-size:0.8rem;">3</div>
+        <div class="flow-content" style="padding-bottom:0;">
+          <strong>Dashboard personnalisé</strong>
+          <span>Forces et faiblesses mis à jour après chaque quiz via Edge Function <em>update-learning-profile</em>.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">Confidentiel · APSIA · Conakry, Guinée · 2026</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  PAGE 4 — Architecture technique                               -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <section>
+    <div class="section-label">Architecture technique</div>
+    <h2>Stack &amp; Edge Functions</h2>
+
+    <div class="arch">CLIENT (React Native / Expo)
+│
+├── app/(tabs)/
+│   ├── home.tsx          ← Onboarding + Dashboard adaptatif
+│   ├── chat.tsx          ← Assistant conversationnel (onglet principal)
+│   ├── library.tsx       ← Documents & circuits
+│   └── profile.tsx       ← Profil & abonnement
+│
+├── src/lib/invoke.ts     ← invokeWithAuth() — JWT auto-refresh
+├── src/store/            ← Zustand (auth, chat, session, ui, offline)
+└── src/hooks/            ← useCircuit, useQuiz, useLearningProfile…
+
+                          ▼  HTTPS + JWT Bearer
+
+SUPABASE EDGE FUNCTIONS (Deno)
+│
+├── _shared/auth.ts       ← Vérification JWT via Supabase GoTrue (ES256 natif)
+├── chat-with-ai          ← Claude Sonnet — détection d'intention
+├── analyze-learning-profile  ← Claude Sonnet — recommandations
+├── update-learning-profile   ← Màj forces/faiblesses post-quiz
+├── analyze-document      ← Claude Opus — lecture PDF
+├── generate-circuit      ← Claude Opus — structure pédagogique
+├── generate-quiz         ← Claude Sonnet — QCM adaptatifs
+├── generate-summary      ← Claude Sonnet — résumé 1-page
+├── submit-quiz           ← Calcul score — logique interne
+├── initiate-payment      ← Kkiapay Mobile Money
+├── verify-payment        ← Vérification &amp; upgrade plan
+└── encrypt-document      ← AES-256-GCM + Supabase Vault
+
+                          ▼
+
+SUPABASE POSTGRESQL
+├── profiles / learning_profiles / documents
+├── circuits / circuit_steps
+├── quizzes / quiz_questions / quiz_options / quiz_attempts
+├── payments / ai_usage / ai_daily_costs
+└── audit_logs / rate_limit_buckets</div>
+  </section>
+
+  <section>
+    <div class="section-label">Edge Functions IA</div>
+    <h2>Répartition des modèles</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Fonction</th>
+          <th>Modèle</th>
+          <th>Rôle</th>
+          <th>Coût relatif</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>analyze-document</strong></td>
+          <td><span class="pill pill-amber">Claude Opus 4.6</span></td>
+          <td>Lecture précise du contenu PDF</td>
+          <td><span class="pill pill-amber">⬛⬛⬛⬛⬛</span></td>
+        </tr>
+        <tr>
+          <td><strong>generate-circuit</strong></td>
+          <td><span class="pill pill-amber">Claude Opus 4.6</span></td>
+          <td>Structuration pédagogique complexe</td>
+          <td><span class="pill pill-amber">⬛⬛⬛⬛⬛</span></td>
+        </tr>
+        <tr>
+          <td><strong>generate-quiz</strong></td>
+          <td><span class="pill pill-blue">Claude Sonnet 4.6</span></td>
+          <td>QCM calibrés par difficulté</td>
+          <td><span class="pill pill-green">⬛⬜⬜⬜⬜</span></td>
+        </tr>
+        <tr>
+          <td><strong>generate-summary</strong></td>
+          <td><span class="pill pill-blue">Claude Sonnet 4.6</span></td>
+          <td>Synthèse du circuit</td>
+          <td><span class="pill pill-green">⬛⬜⬜⬜⬜</span></td>
+        </tr>
+        <tr>
+          <td><strong>chat-with-ai</strong></td>
+          <td><span class="pill pill-blue">Claude Sonnet 4.6</span></td>
+          <td>Conversation + détection d'intention</td>
+          <td><span class="pill pill-green">⬛⬜⬜⬜⬜</span></td>
+        </tr>
+        <tr>
+          <td><strong>analyze-learning-profile</strong></td>
+          <td><span class="pill pill-blue">Claude Sonnet 4.6</span></td>
+          <td>Recommandations pédagogiques personnalisées</td>
+          <td><span class="pill pill-green">⬛⬜⬜⬜⬜</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="footer">Confidentiel · APSIA · Conakry, Guinée · 2026</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  PAGE 5 — Sécurité + Plans tarifaires + Déploiement            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <section>
+    <div class="section-label">Sécurité &amp; Conformité</div>
+    <h2>Protections en place</h2>
+    <div class="grid grid-2">
+      <div class="card card-accent-green">
+        <div class="card-icon">🔐</div>
+        <h3>Chiffrement des données</h3>
+        <p>Chaque PDF est chiffré individuellement en AES-256-GCM. La clé est stockée dans <strong>Supabase Vault</strong> (pgsodium), isolée par utilisateur.</p>
+      </div>
+      <div class="card card-accent-blue">
+        <div class="card-icon">🛡️</div>
+        <h3>Authentification &amp; RLS</h3>
+        <p>Row Level Security sur toutes les tables. Tokens JWT vérifiés à chaque requête via Supabase GoTrue avec algorithme ES256 natif.</p>
+      </div>
+      <div class="card card-accent-amber">
+        <div class="card-icon">⏱️</div>
+        <h3>Rate Limiting</h3>
+        <p>3 fenêtres glissantes (minute / heure / jour) par opération et par plan. Bloc automatique avec message lisible et délai de retry.</p>
+      </div>
+      <div class="card card-accent-purple">
+        <div class="card-icon">📋</div>
+        <h3>Audit Logs</h3>
+        <p>Toutes les actions IA et admin sont tracées (user_id, IP, action, statut). Conformité RGPD avec purge automatique configurable.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Modèle économique</div>
+    <h2>Plans tarifaires</h2>
+    <table>
+      <thead>
+        <tr><th>Plan</th><th>Sessions/mois</th><th>Prix</th><th>Cible</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill pill-gray">Alpha</span></td>
+          <td>3 sessions</td>
+          <td><strong>Gratuit</strong></td>
+          <td>Découverte</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-blue">Beta</span></td>
+          <td>20 sessions</td>
+          <td><strong>20 000 GNF/mois</strong></td>
+          <td>Élève actif</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-purple">Gamma</span></td>
+          <td>Illimité</td>
+          <td><strong>50 000 GNF/mois</strong></td>
+          <td>Révision intensive</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-cyan">École Beta</span></td>
+          <td>20/élève/mois</td>
+          <td><strong>15 000 GNF/élève/mois</strong></td>
+          <td>Établissements</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-amber">École Gamma</span></td>
+          <td>Illimité/élève</td>
+          <td><strong>35 000 GNF/élève/mois</strong></td>
+          <td>Établissements</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px; font-size:0.84rem; font-style:italic; color:var(--text3);">
+      Même prix qu'un répétiteur traditionnel (50 000 GNF/mois) — mais disponible 24h/24 pour un accès illimité.
+    </p>
+    <p style="margin-top:8px; font-size:0.84rem;">Paiement via <strong>Kkiapay</strong> — Mobile Money (MTN, Moov, Orange, Wave) sans carte bancaire, adapté au marché guinéen.</p>
+  </section>
+
+  <section>
+    <div class="section-label">Déploiement</div>
+    <h2>Plateformes supportées</h2>
+    <div class="grid grid-3">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:10px;">🤖</div>
+        <h3>Android</h3>
+        <p>APK via EAS Build. Expo Go pour développement.</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:10px;">🍎</div>
+        <h3>iOS</h3>
+        <p>Build IPA via EAS. TestFlight pour bêta.</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:10px;">🌐</div>
+        <h3>Web</h3>
+        <p>Export Expo → déploiement Vercel avec SPA routing.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">Confidentiel · APSIA · Conakry, Guinée · 2026 &nbsp;·&nbsp; Pour imprimer en PDF : Fichier → Imprimer → Enregistrer en PDF</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  PAGE 6 — Avantages concurrentiels & Roadmap                   -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <section>
+    <div class="section-label">Positionnement</div>
+    <h2>Avantages concurrentiels</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Critère</th>
+          <th style="text-align:center;">exam224.com</th>
+          <th style="text-align:center;">Répétiteur privé</th>
+          <th style="text-align:center; color:var(--blue);">APSIA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Prix mensuel</td>
+          <td style="text-align:center;"><span class="pill pill-green">Gratuit</span></td>
+          <td style="text-align:center;"><span class="pill pill-gray">50 000+ GNF</span></td>
+          <td style="text-align:center;"><span class="pill pill-blue">20 000 GNF</span></td>
+        </tr>
+        <tr>
+          <td>Disponibilité</td>
+          <td style="text-align:center;">24h/24</td>
+          <td style="text-align:center;color:var(--text3);">Limité</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">24h/24</td>
+        </tr>
+        <tr>
+          <td>Corrigés intelligents</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;">Oui</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">Oui (IA)</td>
+        </tr>
+        <tr>
+          <td>Adapté curriculum guinéen</td>
+          <td style="text-align:center;">Oui</td>
+          <td style="text-align:center;color:var(--text3);">Variable</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">Oui (MEN GN)</td>
+        </tr>
+        <tr>
+          <td>Circuit d'apprentissage</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">Oui</td>
+        </tr>
+        <tr>
+          <td>Quiz adaptatifs</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">Oui</td>
+        </tr>
+        <tr>
+          <td>Mode hors-ligne</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">Oui</td>
+        </tr>
+        <tr>
+          <td>App mobile</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--text3);">Non</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">Oui</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="section-label">Roadmap</div>
+    <h2>3 phases de développement</h2>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+      <div class="card card-accent-green">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="color:var(--green); margin:0;">Phase MVP — Semaines 1–8</h3>
+          <span class="pill pill-green">● En cours</span>
+        </div>
+        <ul class="styled">
+          <li>Auth + Profil adaptatif</li>
+          <li>Chat IA + Import PDF / Photo</li>
+          <li>Circuit d'apprentissage + Quiz</li>
+          <li>Paiement Mobile Money (Kkiapay)</li>
+        </ul>
+      </div>
+
+      <div class="card card-accent-blue">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="color:var(--blue); margin:0;">Phase V1 — Semaines 9–14</h3>
+          <span class="pill pill-blue">◷ À venir</span>
+        </div>
+        <ul class="styled">
+          <li>Bibliothèque 400 sujets BEPC/BAC</li>
+          <li>Dashboard admin complet</li>
+          <li>B2B Écoles (dashboard proviseur)</li>
+          <li>Emails automatiques (Brevo)</li>
+          <li>Intégration programme MEN Guinée</li>
+        </ul>
+      </div>
+
+      <div class="card card-accent-purple">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="color:var(--purple); margin:0;">Phase V2 — Mois 6–12</h3>
+          <span class="pill pill-gray">○ Planifié</span>
+        </div>
+        <ul class="styled">
+          <li>Application iOS native</li>
+          <li>Mode hors-ligne complet</li>
+          <li>Prédiction sujets probables IA</li>
+          <li>Expansion Sénégal, Côte d'Ivoire, Mali</li>
+          <li>Correction questions ouvertes par IA</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="footer">Confidentiel · APSIA · Conakry, Guinée · 2026 &nbsp;·&nbsp; Pour imprimer en PDF : Fichier → Imprimer → Enregistrer en PDF</div>
+</div>
+
+<!-- ── Print button ────────────────────────────────────────────── -->
+<button class="print-btn no-print" onclick="window.print()">
+  ⬇ Exporter en PDF
+</button>
+
+</body>
+</html>

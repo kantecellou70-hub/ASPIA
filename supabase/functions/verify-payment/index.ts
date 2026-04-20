@@ -16,10 +16,11 @@ const KKIAPAY_BASE_URL = isSandboxMode
   : 'https://api.kkiapay.me'
 
 const SESSIONS_BY_PLAN: Record<string, number> = {
-  free: 3,
-  starter: 20,
-  pro: 100,
-  enterprise: 999999,
+  alpha:      3,
+  beta:       20,
+  gamma:      999999,
+  ecole_beta: 20,
+  ecole_gamma: 999999,
 }
 
 Deno.serve(async (req) => {

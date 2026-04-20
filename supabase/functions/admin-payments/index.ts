@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
         ...payment,
         operator: payment.operator ?? detectOperator(payment.phone),
         user_name: profile?.full_name ?? 'Inconnu',
-        user_current_plan: profile?.plan ?? 'free',
+        user_current_plan: profile?.plan ?? 'alpha',
       })
     }
 
@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       // Rétrograder le plan utilisateur vers free
       await supabase
         .from('profiles')
-        .update({ plan: 'free', sessions_limit: 3 })
+        .update({ plan: 'alpha', sessions_limit: 3 })
         .eq('id', payment.user_id)
 
       writeAuditLog(supabase, {

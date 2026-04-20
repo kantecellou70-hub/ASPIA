@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 
 export type UserRole = 'student' | 'teacher' | 'admin'
-export type PlanTier = 'free' | 'starter' | 'pro' | 'enterprise'
+export type PlanTier = 'alpha' | 'beta' | 'gamma' | 'ecole_beta' | 'ecole_gamma'
 
 export interface User {
   id: string

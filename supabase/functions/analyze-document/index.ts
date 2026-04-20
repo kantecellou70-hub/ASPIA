@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     )
 
     // Auth optionnelle — nécessaire pour le tracking et le rate limit uniquement
-    let userPlan = 'free'
+    let userPlan = 'alpha'
     const { userId } = await authenticateUser(supabase, req.headers.get('Authorization'))
     if (userId) {
       const { data: profile } = await supabase
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         .select('plan')
         .eq('id', userId)
         .single()
-      userPlan = profile?.plan ?? 'free'
+      userPlan = profile?.plan ?? 'alpha'
     }
 
     // Rate limiting

@@ -6,7 +6,7 @@
  * Retourne :
  *   active_users    — utilisateurs actifs (jour / semaine / mois)
  *   sessions        — sessions IA consommées, opérations Claude, coût estimé USD
- *   revenue         — revenus du mois (XOF) avec détail journalier
+ *   revenue         — revenus du mois (GNF) avec détail journalier
  *   conversion      — taux de conversion free → payant
  *   alert           — dépassement de seuil budgétaire si threshold fourni
  */
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     // ── Profils & sessions ───────────────────────────────────────────────────
     const profiles = profilesRes.data ?? []
     const totalUsers = profiles.length
-    const paidUsers = profiles.filter((p) => p.plan !== 'free').length
+    const paidUsers = profiles.filter((p) => p.plan !== 'alpha').length
     const totalSessionsConsumed = profiles.reduce((s, p) => s + (p.sessions_used ?? 0), 0)
 
     const conversionRate = totalUsers > 0

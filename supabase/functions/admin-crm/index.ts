@@ -15,12 +15,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
 
-const PLANS = ['free', 'starter', 'pro', 'enterprise'] as const
+const PLANS = ['alpha', 'beta', 'gamma', 'ecole_beta', 'ecole_gamma'] as const
 const SESSION_LIMITS: Record<string, number> = {
-  free: 3,
-  starter: 20,
-  pro: 100,
-  enterprise: -1,  // illimité
+  alpha:       3,
+  beta:        20,
+  gamma:       999999,
+  ecole_beta:  20,
+  ecole_gamma: 999999,
 }
 
 Deno.serve(async (req) => {

@@ -1,6 +1,6 @@
 # APSIA
 
-Application mobile d'apprentissage intelligent — transforme vos PDF en parcours pédagogiques IA personnalisés avec quiz adaptatifs et paiement intégré (Mobile Money).
+Application mobile d'apprentissage intelligent — transforme vos PDF en parcours pédagogiques IA personnalisés avec quiz adaptatifs, assistant conversationnel et paiement intégré (Mobile Money).
 
 ---
 
@@ -15,7 +15,7 @@ Application mobile d'apprentissage intelligent — transforme vos PDF en parcour
 | État global | Zustand | ^5.0.12 |
 | Backend / Auth / DB | Supabase | ^2.103.0 |
 | IA — analyse & circuit | Claude Opus 4.6 (Anthropic) | API |
-| IA — quiz & résumé | Claude Sonnet 4.6 (Anthropic) | API (~5x moins cher) |
+| IA — quiz, résumé, chat | Claude Sonnet 4.6 (Anthropic) | API (~5x moins cher) |
 | Paiement | Kkiapay (Mobile Money XOF) | REST |
 | Animations | React Native Reanimated | 4.2.1 |
 | Icônes | @expo/vector-icons | ^15.1.1 |
@@ -34,9 +34,10 @@ APSIA/
 │   │   ├── welcome.tsx               # Écran d'accueil
 │   │   ├── login.tsx
 │   │   └── register.tsx
-│   ├── (tabs)/                       # Navigation principale (Tab Bar)
-│   │   ├── home.tsx                  # Circuits récents + compteur sessions
-│   │   ├── upload.tsx                # Dépôt PDF + barre de progression
+│   ├── (tabs)/                       # Navigation principale (Tab Bar — 4 onglets)
+│   │   ├── home.tsx                  # Onboarding 3 étapes + Dashboard adaptatif IA
+│   │   ├── chat.tsx                  # Assistant conversationnel APSIA (bulles, PJ, quick prompts)
+│   │   ├── upload.tsx                # Dépôt PDF + barre de progression (route directe, hors tab bar)
 │   │   ├── library.tsx               # Bibliothèque documents & circuits
 │   │   └── profile.tsx               # Profil utilisateur + plan
 │   ├── circuit/[id].tsx              # Détail d'un circuit pédagogique
@@ -82,15 +83,16 @@ APSIA/
 │   │   └── config.ts                 # Plans, limites sessions, coûts IA, limites tokens
 │   │
 │   ├── types/                        # Interfaces TypeScript
-│   │   ├── auth.types.ts             # User, Session, LoginCredentials
+│   │   ├── auth.types.ts             # User (+ onboarding_completed, learning_style), Session
 │   │   ├── circuit.types.ts          # Circuit, CircuitStep, Progress
 │   │   ├── quiz.types.ts             # Quiz, Question, Attempt, CourseSummary
 │   │   ├── payment.types.ts          # Payment, Plan, intégration Kkiapay
 │   │   └── upload.types.ts           # DocumentFile, UploadProgress
 │   │
 │   ├── lib/
-│   │   ├── supabase.ts               # Initialisation du client Supabase
-│   │   ├── storage.ts                # Adaptateur AsyncStorage/localStorage pour auth
+│   │   ├── supabase.ts               # Client Supabase singleton (lock bypass ES256)
+│   │   ├── invoke.ts                 # invokeWithAuth — appel Edge Functions avec JWT auto-refresh
+│   │   ├── storage.ts                # Adaptateur AsyncStorage singleton (évite les races de lock)
 │   │   └── offlineCache.ts           # Cache local pour le mode hors-ligne
 │   │
 │   ├── services/                     # Logique métier
@@ -103,24 +105,22 @@ APSIA/
 │   │
 │   ├── store/                        # Stores Zustand
 │   │   ├── authStore.ts              # État auth (isAuthenticated basé sur session uniquement)
+│   │   ├── chatStore.ts              # Messages du chat (max 50, 7 types de messages)
 │   │   ├── sessionStore.ts           # Quota de sessions
 │   │   ├── uploadStore.ts            # Progression d'upload
 │   │   ├── uiStore.ts                # Toasts, modals
 │   │   └── offlineStore.ts           # File d'attente uploads hors-ligne
 │   │
-│   ├── hooks/                        # Hooks personnalisés
-│   │   ├── useAuth.ts
-│   │   ├── useUpload.ts              # Upload + chiffrement + analyse IA
-│   │   ├── useCircuit.ts
-│   │   ├── useQuiz.ts
-│   │   ├── usePayment.ts
-│   │   ├── useSession.ts
-│   │   ├── useNetwork.ts             # Détection réseau (NetInfo)
-│   │   └── useOfflineSync.ts         # Synchronisation de la file hors-ligne
-│   │
-│   └── utils/
-│       ├── formatters.ts             # Formatage date, nombres, texte
-│       └── validators.ts             # Validation email, fichiers
+│   └── hooks/                        # Hooks personnalisés
+│       ├── useAuth.ts
+│       ├── useUpload.ts              # Upload + chiffrement + analyse IA
+│       ├── useCircuit.ts
+│       ├── useQuiz.ts
+│       ├── usePayment.ts
+│       ├── useSession.ts
+│       ├── useLearningProfile.ts     # Fetch/analyse/màj du profil d'apprentissage
+│       ├── useNetwork.ts             # Détection réseau (NetInfo)
+│       └── useOfflineSync.ts         # Synchronisation de la file hors-ligne
 │
 ├── supabase/
 │   ├── config.toml                   # Config Supabase local (ports, auth, storage)
@@ -129,14 +129,19 @@ APSIA/
 │   │   ├── 20260415000000_crm_fields.sql        # city, is_banned sur profiles
 │   │   ├── 20260415000001_payment_fields.sql    # operator, refund_reason, refunded_at sur payments
 │   │   ├── 20260415000002_ai_cost_optimization.sql  # ai_usage, ai_daily_costs, file_hash, RPCs
-│   │   └── 20260415000003_security_compliance.sql   # audit_logs, rate_limit_buckets, vault, RPCs
+│   │   ├── 20260415000003_security_compliance.sql   # audit_logs, rate_limit_buckets, vault, RPCs
+│   │   └── 20260420000000_learning_profiles.sql     # learning_profiles + onboarding_completed sur profiles
 │   └── functions/                    # Edge Functions Deno/TypeScript
 │       ├── _shared/
+│       │   ├── auth.ts               # getUserIdFromJwt — décode payload JWT sans appel GoTrue (ES256)
 │       │   ├── cors.ts               # Utilitaires CORS
 │       │   ├── ai-tracker.ts         # Cap mensuel tokens + enregistrement consommation
 │       │   ├── rate-limiter.ts       # Rate limiting par fenêtre glissante (PostgreSQL)
 │       │   ├── audit.ts              # Journaux d'audit (audit_logs)
 │       │   └── crypto.ts             # AES-256-GCM via Web Crypto API
+│       ├── chat-with-ai/             # Assistant conversationnel — détection d'intention + action cards
+│       ├── analyze-learning-profile/ # Analyse onboarding → recommandations IA personnalisées
+│       ├── update-learning-profile/  # Màj forces/faiblesses après chaque quiz
 │       ├── analyze-document/         # Analyse PDF via Claude Opus (+ hash SHA-256 + déchiffrement)
 │       ├── generate-circuit/         # Circuit pédagogique — cache deux niveaux + Opus
 │       ├── generate-quiz/            # Quiz — Claude Sonnet (~5x moins cher)
@@ -167,7 +172,8 @@ Toutes les tables utilisent RLS (Row Level Security) — chaque utilisateur n'ac
 
 | Table | Description |
 |---|---|
-| `profiles` | Profil utilisateur (rôle, plan, quota sessions, ville, rétention données) |
+| `profiles` | Profil utilisateur (rôle, plan, quota sessions, ville, `onboarding_completed`, `learning_style`) |
+| `learning_profiles` | Profil pédagogique IA (niveau, filière, style, forces, faiblesses, recommandations) |
 | `documents` | PDFs uploadés (storage path, hash SHA-256, vault_key_id, is_encrypted) |
 | `circuits` | Parcours d'apprentissage générés par IA |
 | `circuit_steps` | Étapes d'un circuit (contenu, concepts-clés) |
@@ -191,6 +197,9 @@ Les PDF et la génération de contenu sont entièrement traités côté serveur 
 
 | Fonction | Entrée | Sortie | Modèle | Note |
 |---|---|---|---|---|
+| `chat-with-ai` | message, historique, contexte | Réponse + action card optionnelle | Claude Sonnet 4.6 | Détection d'intention, timeout 30s |
+| `analyze-learning-profile` | Données onboarding | Forces, faiblesses, recommandations | Claude Sonnet 4.6 | Upsert dans `learning_profiles` |
+| `update-learning-profile` | `circuit_id`, score | Forces/faiblesses mises à jour | Logique interne | Appelé après chaque quiz |
 | `analyze-document` | `document_id` | Analyse structurée (titre, niveau, concepts) | Claude Opus 4.6 | Déchiffre le PDF si chiffré |
 | `generate-circuit` | `document_id` | Circuit + 5–8 étapes en base | Claude Opus 4.6 | Cache SHA-256 deux niveaux |
 | `generate-quiz` | `circuit_id` | Quiz + questions en base | Claude Sonnet 4.6 | ~5x moins cher qu'Opus |
@@ -201,6 +210,27 @@ Les PDF et la génération de contenu sont entièrement traités côté serveur 
 | `encrypt-document` | `document_id` | PDF chiffré dans Storage | Web Crypto AES-256-GCM | Clé dans Vault |
 | `purge-expired-data` | — | Suppression données expirées | — | RGPD, pg_cron mensuel |
 | `check-daily-costs` | — | Alerte webhook si seuil dépassé | — | pg_cron toutes les heures |
+
+### Flux Chat IA
+
+```
+1. Utilisateur envoie un message (texte, PDF ou image)
+2. chat.tsx → invokeWithAuth('chat-with-ai', { message, history })
+3. Edge Function détecte l'intention (texte / circuit / quiz / résumé)
+4. Claude Sonnet retourne un JSON { type, text, action }
+5. Si action → carte cliquable (ex. "Créer le circuit →")
+6. Timeout client : 35s — affiche un message d'erreur lisible si dépassé
+```
+
+### Flux Onboarding → Dashboard adaptatif
+
+```
+1. Premier login → onboarding 3 étapes (niveau, style, matières)
+2. Étape 3 validée → analyze-learning-profile (Claude Sonnet, timeout 20s)
+3. En cas d'échec → profil par défaut enregistré, onboarding marqué done
+4. Dashboard : stats circuits, forces/faiblesses, recommandations IA, motivational message
+5. Après chaque quiz → update-learning-profile met à jour forces/faiblesses
+```
 
 ### Flux de traitement d'un document
 
@@ -217,7 +247,7 @@ Les PDF et la génération de contenu sont entièrement traités côté serveur 
 
 ### Optimisation des coûts IA
 
-- **Claude Sonnet** pour quiz et résumés (~5x moins cher qu'Opus, qualité suffisante)
+- **Claude Sonnet** pour chat, quiz et résumés (~5x moins cher qu'Opus, qualité suffisante)
 - **Cache circuit** : deux niveaux — par `document_id`, puis par hash SHA-256 (re-uploads)
 - **Cap mensuel tokens** par plan (free: 100k, starter: 1M, pro: 5M, enterprise: illimité)
 - **Alerte coûts** : webhook (Slack/Discord/générique) si dépense journalière > seuil configuré
@@ -250,6 +280,7 @@ Les PDF et la génération de contenu sont entièrement traités côté serveur 
 - Java 17 (`sudo apt install openjdk-17-jdk` sur Ubuntu)
 - Android Studio avec SDK Android 34+ (pour l'émulateur)
 - Compte [Supabase](https://supabase.com) avec projet créé
+- Compte [Anthropic](https://console.anthropic.com) avec crédits actifs
 - Compte [Kkiapay](https://kkiapay.me) (mode sandbox disponible)
 
 ### Démarrage rapide
@@ -317,6 +348,7 @@ Exécuter les migrations dans l'ordre dans **SQL Editor → Run** :
 3. `supabase/migrations/20260415000001_payment_fields.sql`
 4. `supabase/migrations/20260415000002_ai_cost_optimization.sql`
 5. `supabase/migrations/20260415000003_security_compliance.sql`
+6. `supabase/migrations/20260420000000_learning_profiles.sql`
 
 Si la migration init a déjà été partiellement appliquée (erreur "relation already exists"), exécuter uniquement ce correctif pour recréer le trigger :
 
@@ -349,25 +381,29 @@ ON CONFLICT (id) DO NOTHING;
 
 ### Déployer les Edge Functions
 
+Toutes les fonctions utilisent `--no-verify-jwt` car l'authentification ES256 est gérée en interne via décodage du payload JWT (voir note technique ci-dessous).
+
 ```bash
-# Fonctions core
-supabase functions deploy analyze-document
-supabase functions deploy generate-circuit
-supabase functions deploy generate-quiz
-supabase functions deploy generate-summary
-supabase functions deploy submit-quiz
-supabase functions deploy initiate-payment
-supabase functions deploy verify-payment
+# Déployer toutes les fonctions en une commande
+supabase functions deploy --no-verify-jwt
 
-# Fonctions admin
-supabase functions deploy get-kpis
-supabase functions deploy admin-crm
-supabase functions deploy admin-payments
-
-# Fonctions système
-supabase functions deploy encrypt-document
-supabase functions deploy purge-expired-data
-supabase functions deploy check-daily-costs
+# Ou fonction par fonction
+supabase functions deploy chat-with-ai --no-verify-jwt
+supabase functions deploy analyze-learning-profile --no-verify-jwt
+supabase functions deploy update-learning-profile --no-verify-jwt
+supabase functions deploy analyze-document --no-verify-jwt
+supabase functions deploy generate-circuit --no-verify-jwt
+supabase functions deploy generate-quiz --no-verify-jwt
+supabase functions deploy generate-summary --no-verify-jwt
+supabase functions deploy submit-quiz --no-verify-jwt
+supabase functions deploy initiate-payment --no-verify-jwt
+supabase functions deploy verify-payment --no-verify-jwt
+supabase functions deploy encrypt-document --no-verify-jwt
+supabase functions deploy get-kpis --no-verify-jwt
+supabase functions deploy admin-crm --no-verify-jwt
+supabase functions deploy admin-payments --no-verify-jwt
+supabase functions deploy purge-expired-data --no-verify-jwt
+supabase functions deploy check-daily-costs --no-verify-jwt
 ```
 
 ---
@@ -396,6 +432,13 @@ WHERE email = 'utilisateur@exemple.com';
 UPDATE public.profiles
 SET role = 'admin'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'admin@exemple.com');
+```
+
+### Réinitialiser l'onboarding d'un utilisateur
+```sql
+UPDATE public.profiles
+SET onboarding_completed = false
+WHERE id = (SELECT id FROM auth.users WHERE email = 'utilisateur@exemple.com');
 ```
 
 ---
@@ -568,4 +611,6 @@ Thème sombre (fond `#07101a`) avec composants glass-morphism.
 - **`isAuthenticated`** : dérivé de la session Supabase uniquement (pas du profil) — évite les déconnexions si le profil est temporairement inaccessible
 - **Toast** : notifications système visibles via `useUiStore().showToast()`, rendu global dans `_layout.tsx`
 - **Mode hors-ligne** : uploads mis en file d'attente dans `offlineStore` et synchronisés à la reconnexion via `useOfflineSync`
-- **Auth Edge Functions** : pattern `supabaseUser.auth.getUser(token)` avec token explicite (ne pas utiliser `getUser()` sans argument — la session n'est pas disponible côté serveur)
+- **Auth ES256 — Edge Functions** : ce projet Supabase utilise la signature JWT asymétrique ES256. `supabase.auth.getUser(token)` retourne "Unsupported JWT algorithm ES256" lorsque le token est passé explicitement. Le helper `_shared/auth.ts` décode le payload JWT localement (base64url → JSON) sans vérification de signature — l'authenticité est garantie par Supabase Cloud en amont. Toutes les fonctions sont déployées avec `--no-verify-jwt`.
+- **Lock token Supabase** : l'adaptateur `storage.ts` initialise AsyncStorage une seule fois (singleton) pour éviter les races concurrentes ("lock was released"). Le client Supabase utilise `lock: (_, __, fn) => fn()` pour bypasser le mécanisme de lock natif sur web.
+- **Onglet upload** : `upload.tsx` reste accessible via `router.push('/(tabs)/upload')` mais est masqué de la tab bar (`href: null`) — l'import PDF se fait depuis l'accueil ou le chat.

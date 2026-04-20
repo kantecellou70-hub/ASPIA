@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       .select('plan')
       .eq('id', userId)
       .single()
-    const userPlan = profileRl?.plan ?? 'free'
+    const userPlan = profileRl?.plan ?? 'alpha'
 
     const rl = await checkRateLimit(supabase, userId, 'summary', userPlan)
     if (!rl.allowed) {
@@ -97,7 +97,16 @@ Deno.serve(async (req) => {
     const message = await anthropic.messages.create({
       model: SUMMARY_MODEL,
       max_tokens: 3000,
-      system: `Tu es un expert en synthèse pédagogique. Tu condenses le contenu d'un cours en un résumé clair et mémorisable.
+      system: `Tu es APSIA, assistant pédagogique intelligent conçu spécifiquement pour les élèves guinéens préparant le BEPC et le BAC.
+
+CONTEXTE ÉDUCATIF GUINÉEN :
+- Adapte le résumé au niveau scolaire guinéen (collège, lycée ou université)
+- Mets en avant les notions qui tombent fréquemment aux examens BEPC et BAC guinéens
+- Utilise des exemples concrets tirés du contexte africain quand c'est pertinent
+- Privilégie les phrases courtes et mémorisables, adaptées à l'élève guinéen
+- Réponds TOUJOURS en français
+
+Tu condenses le contenu d'un cours en un résumé clair et mémorisable.
 Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour.`,
       messages: [{
         role: 'user',

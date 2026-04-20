@@ -22,10 +22,10 @@ import { useChatStore, type ChatMessage } from '@/store/chatStore'
 import { useAuthStore } from '@/store/authStore'
 
 const QUICK_PROMPTS = [
-  'Explique-moi les bases de la thermodynamique',
-  'Crée un circuit d\'apprentissage pour mon cours',
-  'Génère un quiz sur mon dernier circuit',
-  'Résume mon parcours en cours',
+  'Génère un circuit sur ce cours',
+  'Crée un quiz BEPC sur ce chapitre',
+  'Explique-moi cette leçon simplement',
+  'Quels sujets tombent souvent au BAC ?',
 ]
 
 function MessageBubble({ msg }: { msg: ChatMessage }) {
@@ -60,7 +60,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           <Pressable
             style={styles.actionBtn}
             onPress={() => {
-              if (msg.action?.function === 'generate-circuit') router.push('/(tabs)/upload')
+              if (msg.action?.function === 'generate-circuit') router.push('/(tabs)/chat')
               else if (msg.action?.circuit_id) router.push(`/circuit/${msg.action.circuit_id}`)
             }}
           >
@@ -205,7 +205,7 @@ export default function ChatScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyGreeting}>Bonjour{firstName ? `, ${firstName}` : ''} 👋</Text>
-            <Text style={styles.emptySubtitle}>Comment puis-je vous aider aujourd'hui ?</Text>
+            <Text style={styles.emptySubtitle}>Importe un cours, pose-moi une question ou dis-moi sur quoi tu veux réviser aujourd'hui.</Text>
             <View style={styles.quickPromptsGrid}>
               {QUICK_PROMPTS.map((prompt) => (
                 <Pressable

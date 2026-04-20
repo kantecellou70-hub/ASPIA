@@ -7,9 +7,9 @@ import { textStyles } from '@/constants/typography'
 import { Button } from '@/components/ui/Button'
 
 const features = [
-  { icon: '📄', title: 'Importez vos cours', desc: 'Uploader n\'importe quel PDF' },
-  { icon: '⚡', title: 'Circuit IA', desc: 'Un parcours personnalisé généré pour vous' },
-  { icon: '🧠', title: 'Quiz adaptatif', desc: 'Testez et ancrez vos connaissances' },
+  { icon: '📸', title: 'Importe ton cours ou prends une photo', desc: 'PDF ou photo de cours manuscrit — APSIA s\'en occupe' },
+  { icon: '⚡', title: 'APSIA crée ton parcours personnalisé', desc: 'Circuit d\'apprentissage adapté à ton niveau et ta filière' },
+  { icon: '🧠', title: 'Teste-toi et comble tes lacunes', desc: 'Quiz BEPC/BAC calibrés pour que tu fasses partie des 40% qui réussissent' },
 ]
 
 export default function WelcomeScreen() {
@@ -23,7 +23,7 @@ export default function WelcomeScreen() {
         </View>
         <Text style={styles.appName}>APSIA</Text>
         <Text style={styles.tagline}>
-          Transformez vos documents en parcours d'apprentissage intelligent
+          L'intelligence qui t'élève — prépare le BEPC et le BAC avec un répétiteur IA disponible 24h/24
         </Text>
       </View>
 

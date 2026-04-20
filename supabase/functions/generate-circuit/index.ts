@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       .select('plan, sessions_used, sessions_limit')
       .eq('id', userId)
       .single()
-    const userPlan = profile?.plan ?? 'free'
+    const userPlan = profile?.plan ?? 'alpha'
     const sessionsUsed = (profile?.sessions_used ?? 0) as number
     const sessionsLimit = (profile?.sessions_limit ?? 3) as number
 
@@ -178,9 +178,9 @@ Deno.serve(async (req) => {
         used: cap.used,
         limit: cap.limit,
         plan: cap.plan,
-        upgrade_hint: cap.plan === 'free'
-          ? 'Passez au plan Starter pour 10x plus de tokens.'
-          : 'Contactez-nous pour augmenter votre quota.',
+        upgrade_hint: cap.plan === 'alpha'
+          ? 'Passe au plan Beta pour 10x plus de tokens.'
+          : 'Contacte-nous pour augmenter ton quota.',
       }, 429)
     }
 
@@ -190,7 +190,17 @@ Deno.serve(async (req) => {
     const message = await anthropic.messages.create({
       model: CIRCUIT_MODEL,
       max_tokens: 4096,
-      system: `Tu es un expert en pédagogie. Tu génères des circuits d'apprentissage structurés à partir de documents.
+      system: `Tu es APSIA, assistant pédagogique intelligent conçu spécifiquement pour les élèves guinéens préparant le BEPC et le BAC.
+
+CONTEXTE ÉDUCATIF GUINÉEN :
+- Filières lycée : SM, SS, SE, A, B1, C, D
+- Matières BEPC : Mathématiques, Français, Sciences Physiques, Sciences Naturelles, Histoire-Géographie, Anglais, Éducation Civique
+- Le taux de réussite au BAC en Guinée est inférieur à 40% — aide l'élève à faire partie des 40% qui réussissent
+- Adapte le contenu au niveau scolaire guinéen et aux types de questions fréquentes aux examens nationaux
+- Utilise des exemples concrets tirés du contexte guinéen et africain
+- Réponds TOUJOURS en français
+
+Tu génères des circuits d'apprentissage structurés à partir de documents.
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans texte avant ou après.`,
       messages: [{
         role: 'user',

@@ -8,14 +8,27 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * Formate un montant avec la devise (ex: "2 500 XOF")
+ * Formate un montant en GNF (ex: "20 000 GNF"). Retourne "Gratuit" si amount === 0.
  */
-export function formatCurrency(amount: number, currency = 'XOF'): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency,
+export function formatGNF(amount: number): string {
+  if (amount === 0) return 'Gratuit'
+  return new Intl.NumberFormat('fr-GN', {
+    style: 'decimal',
+    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(amount) + ' GNF'
+}
+
+/**
+ * Formate un montant avec la devise (ex: "20 000 GNF")
+ */
+export function formatCurrency(amount: number, currency = 'GNF'): string {
+  if (amount === 0) return 'Gratuit'
+  return new Intl.NumberFormat('fr-GN', {
+    style: 'decimal',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount) + ` ${currency}`
 }
 
 /**

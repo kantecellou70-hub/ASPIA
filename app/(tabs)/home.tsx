@@ -21,11 +21,19 @@ import { useAuthStore } from '@/store/authStore'
 import { useCircuit } from '@/hooks/useCircuit'
 import { useLearningProfile, type OnboardingData } from '@/hooks/useLearningProfile'
 import { supabase } from '@/lib/supabase'
+import {
+  GUINEE_NIVEAUX,
+  GUINEE_FILIERES,
+  GUINEE_MATIERES_BEPC,
+  GUINEE_VILLES,
+  OBJECTIFS_ELEVE,
+} from '@/constants/config'
 
 // ── Onboarding Step types ────────────────────────────────────────────────────
 
-const NIVEAUX = ['Lycée', 'Licence 1', 'Licence 2', 'Licence 3', 'Master 1', 'Master 2', 'Doctorat', 'Autre']
-const OBJECTIFS = ['Réussir mes examens', 'Approfondir mes connaissances', 'Changer de filière', 'Développement personnel']
+const NIVEAUX = GUINEE_NIVEAUX
+const FILIERES = [...GUINEE_FILIERES.lycee, ...GUINEE_FILIERES.universite]
+const OBJECTIFS = OBJECTIFS_ELEVE
 const LEARNING_STYLES = [
   { key: 'visual', label: 'Visuel', icon: 'eye-outline' },
   { key: 'auditory', label: 'Auditif', icon: 'headset-outline' },
@@ -33,7 +41,7 @@ const LEARNING_STYLES = [
   { key: 'kinesthetic', label: 'Pratique', icon: 'hand-left-outline' },
 ]
 const AVAILABLE_TIMES = ['< 1h/jour', '1–2h/jour', '2–4h/jour', '> 4h/jour']
-const SUBJECTS_LIST = ['Mathématiques', 'Physique', 'Chimie', 'Informatique', 'Économie', 'Droit', 'Médecine', 'Langues', 'Autre']
+const SUBJECTS_LIST = GUINEE_MATIERES_BEPC
 const DIFFICULTIES_LIST = ['Comprendre les cours', 'Mémoriser', 'Gérer mon temps', 'Trouver des ressources', 'Rester motivé']
 
 type OnboardingStep = 1 | 2 | 3
@@ -118,7 +126,7 @@ function OnboardingScreen({
 
           <Text style={styles.fieldLabel}>Ta filière / domaine</Text>
           <View style={styles.chipRow}>
-            {SUBJECTS_LIST.map((s) => (
+            {FILIERES.map((s) => (
               <Chip key={s} label={s} selected={data.filiere === s} onPress={() => onChange({ filiere: s })} />
             ))}
           </View>
@@ -331,11 +339,11 @@ function DashboardScreen() {
               <Text style={styles.emptyEmoji}>🚀</Text>
               <Text style={styles.emptyTitle}>Commencez votre premier circuit</Text>
               <Text style={styles.emptySubtitle}>
-                Importez un PDF pour qu'APSIA génère un parcours d'apprentissage personnalisé
+                Importe ton cours ou prends une photo — APSIA génère ton circuit d'apprentissage en 30s
               </Text>
               <Button
                 label="Importer un cours"
-                onPress={() => router.push('/(tabs)/upload')}
+                onPress={() => router.push('/(tabs)/chat')}
                 style={styles.emptyButton}
               />
             </GlassCard>

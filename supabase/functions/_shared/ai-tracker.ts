@@ -16,16 +16,17 @@ export const MODEL_COSTS: Record<string, { input: number; output: number }> = {
 }
 
 // ─── Limites mensuelles de tokens par plan (input + output combinés) ──────────
-// free     : ~10 circuits ou ~50 quiz/mois
-// starter  : ~100 circuits ou ~500 quiz/mois
-// pro      : ~500 circuits ou ~2500 quiz/mois
-// enterprise : illimité
+// alpha      : ~10 circuits ou ~50 quiz/mois
+// beta       : ~100 circuits ou ~500 quiz/mois
+// gamma      : ~500 circuits ou ~2500 quiz/mois
+// ecole_gamma: illimité
 
 export const MONTHLY_TOKEN_LIMITS: Record<string, number> = {
-  free:       100_000,
-  starter:    1_000_000,
-  pro:        5_000_000,
-  enterprise: -1,  // illimité
+  alpha:       100_000,
+  beta:        1_000_000,
+  gamma:       5_000_000,
+  ecole_beta:  1_000_000,
+  ecole_gamma: -1,  // illimité
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,8 +74,8 @@ export async function checkMonthlyTokenCap(
     .eq('id', userId)
     .single()
 
-  const plan = profile?.plan ?? 'free'
-  const limit = MONTHLY_TOKEN_LIMITS[plan] ?? MONTHLY_TOKEN_LIMITS.free
+  const plan = profile?.plan ?? 'alpha'
+  const limit = MONTHLY_TOKEN_LIMITS[plan] ?? MONTHLY_TOKEN_LIMITS.alpha
 
   if (limit === -1) {
     return { allowed: true, used: 0, limit: -1, plan }

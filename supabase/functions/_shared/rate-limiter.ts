@@ -2,10 +2,11 @@
  * rate-limiter.ts — Rate limiting par utilisateur basé sur PostgreSQL
  *
  * Fenêtres glissantes par plan :
- *   free      : 5/min · 30/h  · 50/day
- *   starter   : 15/min · 100/h · 200/day
- *   pro       : 30/min · 300/h · 1000/day
- *   enterprise: 60/min · 600/h · unlimited
+ *   alpha      : 5/min · 30/h  · 50/day
+ *   beta       : 15/min · 100/h · 200/day
+ *   gamma      : 30/min · 300/h · 1000/day
+ *   ecole_beta : 15/min · 100/h · 200/day
+ *   ecole_gamma: 60/min · 600/h · unlimited
  */
 
 export interface RateLimitConfig {
@@ -15,10 +16,11 @@ export interface RateLimitConfig {
 }
 
 export const RATE_LIMITS: Record<string, RateLimitConfig> = {
-  free:       { minute: 5,  hour: 30,  day: 50    },
-  starter:    { minute: 15, hour: 100, day: 200   },
-  pro:        { minute: 30, hour: 300, day: 1000  },
-  enterprise: { minute: 60, hour: 600, day: 99999 },
+  alpha:       { minute: 5,  hour: 30,  day: 50    },
+  beta:        { minute: 15, hour: 100, day: 200   },
+  gamma:       { minute: 30, hour: 300, day: 1000  },
+  ecole_beta:  { minute: 15, hour: 100, day: 200   },
+  ecole_gamma: { minute: 60, hour: 600, day: 99999 },
 }
 
 export interface RateLimitResult {
@@ -40,7 +42,7 @@ export async function checkRateLimit(
   operation: string,
   plan: string,
 ): Promise<RateLimitResult> {
-  const limits = RATE_LIMITS[plan] ?? RATE_LIMITS['free']
+  const limits = RATE_LIMITS[plan] ?? RATE_LIMITS['alpha']
   const now = new Date()
 
   // Clés de fenêtres : minute courante, heure courante, jour courant
