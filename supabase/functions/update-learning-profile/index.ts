@@ -6,7 +6,7 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
-import { getUserIdFromJwt } from '../_shared/auth.ts'
+import { authenticateUser } from '../_shared/auth.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
 
 function jsonResp(data: unknown, status = 200): Response {
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       return jsonResp({ error: 'circuit_id et score requis' }, 400)
     }
 
-    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    const { userId, error: authError } = await authenticateUser(supabase, req.headers.get('Authorization'))
     if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
 
     const supabase = createClient(

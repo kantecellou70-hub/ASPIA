@@ -8,7 +8,7 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
-import { getUserIdFromJwt } from '../_shared/auth.ts'
+import { authenticateUser } from '../_shared/auth.ts'
 
 const isSandboxMode = Deno.env.get('KKIAPAY_SANDBOX') === 'true'
 const KKIAPAY_BASE_URL = isSandboxMode
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    const { userId, error: authError } = await authenticateUser(supabase, req.headers.get('Authorization'))
     if (!userId) {
       return new Response(JSON.stringify({ error: authError ?? 'Non authentifié' }), {
         status: 401,

@@ -13,7 +13,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.35.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
-import { getUserIdFromJwt } from '../_shared/auth.ts'
+import { authenticateUser } from '../_shared/auth.ts'
 import { checkMonthlyTokenCap, recordUsage } from '../_shared/ai-tracker.ts'
 import { checkRateLimit } from '../_shared/rate-limiter.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
@@ -38,13 +38,13 @@ Deno.serve(async (req) => {
     const { circuit_id } = await req.json()
     if (!circuit_id) return jsonResp({ error: 'circuit_id requis' }, 400)
 
-    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
-    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
+
+    const { userId, error: authError } = await authenticateUser(supabase, req.headers.get('Authorization'))
+    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
 
     // ── Rate limiting ─────────────────────────────────────────────────────────
     const { data: profileRl } = await supabase

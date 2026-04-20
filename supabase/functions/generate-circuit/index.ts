@@ -14,7 +14,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.35.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
-import { getUserIdFromJwt } from '../_shared/auth.ts'
+import { authenticateUser } from '../_shared/auth.ts'
 import { checkMonthlyTokenCap, recordUsage } from '../_shared/ai-tracker.ts'
 import { checkRateLimit } from '../_shared/rate-limiter.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    const { userId, error: authError } = await authenticateUser(supabase, req.headers.get('Authorization'))
     if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
 
     // Rate limiting + vérification sessions

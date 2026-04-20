@@ -356,6 +356,19 @@ function DashboardScreen() {
 
 // ── Main HomeScreen ──────────────────────────────────────────────────────────
 
+const ANALYSIS_TIMEOUT_MS = 20_000
+
+const DEFAULT_PROFILE_ON_ERROR = {
+  learning_style: 'reading',
+  strengths: [] as string[],
+  weaknesses: [] as string[],
+  ai_recommendations: {
+    recommendations: [],
+    study_plan: '',
+    motivational_message: 'Bienvenue sur APSIA ! Commence à réviser pour voir ton profil se construire.',
+  },
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const { user } = useAuthStore()
@@ -364,8 +377,8 @@ export default function HomeScreen() {
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(null)
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({})
   const [showDashboard, setShowDashboard] = useState(false)
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null)
 
-  // Determine if onboarding is needed
   useEffect(() => {
     if (!user) return
     if (user.onboarding_completed) {
@@ -379,19 +392,57 @@ export default function HomeScreen() {
     setOnboardingData((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const markOnboardingDone = useCallback(async () => {
+    if (user) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ onboarding_completed: true, learning_style: onboardingData.learning_style ?? 'reading' })
+          .eq('id', user.id)
+      } catch {
+        // non-blocking
+      }
+    }
+    setShowDashboard(true)
+    setOnboardingStep(null)
+  }, [user, onboardingData.learning_style])
+
   const handleNext = useCallback(async () => {
     if (onboardingStep === 3) {
+      setAnalyzeError(null)
       try {
-        await analyzeProfile(onboardingData)
-        setShowDashboard(true)
-        setOnboardingStep(null)
-      } catch {
-        // error shown in useLearningProfile
+        // Race the AI call against a 20 s timeout
+        await Promise.race([
+          analyzeProfile(onboardingData),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), ANALYSIS_TIMEOUT_MS),
+          ),
+        ])
+        await markOnboardingDone()
+      } catch (e) {
+        const isTimeout = (e as Error).message === 'timeout'
+        setAnalyzeError(
+          isTimeout
+            ? "L'analyse a pris trop de temps. Ton profil de base a été créé."
+            : "L'analyse IA a échoué. Tu peux continuer avec un profil par défaut.",
+        )
+        // Store a minimal profile so the dashboard isn't empty
+        if (user) {
+          try {
+            await supabase
+              .from('learning_profiles')
+              .upsert({ user_id: user.id, ...onboardingData, ...DEFAULT_PROFILE_ON_ERROR }, { onConflict: 'user_id' })
+          } catch {
+            // non-blocking
+          }
+        }
+        // Don't block the user — mark onboarding done and show dashboard
+        await markOnboardingDone()
       }
     } else if (onboardingStep !== null) {
       setOnboardingStep((prev) => (prev! + 1) as OnboardingStep)
     }
-  }, [onboardingStep, onboardingData, analyzeProfile])
+  }, [onboardingStep, onboardingData, analyzeProfile, markOnboardingDone, user])
 
   const handleBack = useCallback(() => {
     if (onboardingStep && onboardingStep > 1) {
@@ -400,13 +451,8 @@ export default function HomeScreen() {
   }, [onboardingStep])
 
   const handleSkip = useCallback(async () => {
-    // Mark onboarding done without analysis
-    if (user) {
-      await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
-    }
-    setShowDashboard(true)
-    setOnboardingStep(null)
-  }, [user])
+    await markOnboardingDone()
+  }, [markOnboardingDone])
 
   if (isAnalyzing) {
     return (
@@ -428,6 +474,11 @@ export default function HomeScreen() {
           onSkip={handleSkip}
           isLast={onboardingStep === 3}
         />
+        {analyzeError && (
+          <View style={styles.analyzeErrorBanner}>
+            <Text style={styles.analyzeErrorText}>{analyzeError}</Text>
+          </View>
+        )}
       </View>
     )
   }
@@ -443,6 +494,23 @@ const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+
+  analyzeErrorBanner: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.accent.warning,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  analyzeErrorText: {
+    ...textStyles.caption,
+    color: colors.accent.warning,
+    textAlign: 'center',
   },
 
   // Onboarding

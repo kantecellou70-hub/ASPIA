@@ -116,11 +116,19 @@ export default function ChatScreen() {
       .slice(-8)
       .map((m) => ({ role: m.role, content: m.text }))
 
+    const CLIENT_TIMEOUT_MS = 35_000
+
     try {
-      const { data, error } = await invokeWithAuth('chat-with-ai', {
+      const invokePromise = invokeWithAuth('chat-with-ai', {
         message: text || (attachment ? `J'ai partagé le fichier : ${attachment.name}` : ''),
         history,
       })
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Désolé, je n\'ai pas pu répondre. Réessaie.')), CLIENT_TIMEOUT_MS),
+      )
+
+      const { data, error } = await Promise.race([invokePromise, timeoutPromise])
       if (error) await throwFromInvoke(error, data)
 
       const reply = data?.reply
@@ -134,7 +142,7 @@ export default function ChatScreen() {
       addMessage({
         role: 'assistant',
         type: 'error',
-        text: `Erreur : ${(e as Error).message}`,
+        text: (e as Error).message,
       })
     } finally {
       setTyping(false)
