@@ -12,6 +12,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Bypass the built-in lock mechanism — concurrent refresh calls on web
+    // cause "lock was released because another request stole it". Our singleton
+    // storage adapter already serialises reads/writes safely.
+    lock: (_name: string, _acquireTimeout: number, fn: () => Promise<unknown>) => fn(),
   },
 })
 

@@ -12,6 +12,8 @@ export interface User {
   plan: PlanTier
   sessions_used: number
   sessions_limit: number
+  onboarding_completed?: boolean
+  learning_style?: string
   created_at: string
   updated_at: string
 }

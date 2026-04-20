@@ -11,6 +11,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.35.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { getUserIdFromJwt } from '../_shared/auth.ts'
 import { recordUsage } from '../_shared/ai-tracker.ts'
 import { checkRateLimit } from '../_shared/rate-limiter.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
@@ -46,13 +47,9 @@ Deno.serve(async (req) => {
     )
 
     // Auth : récupère user_id depuis le JWT (nécessaire pour le tracking + rate limit)
-    const authHeader = req.headers.get('Authorization')
-    let userId: string | null = null
     let userPlan = 'free'
-    if (authHeader) {
-      const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
-      userId = user?.id ?? null
-      if (userId) {
+    const { userId } = getUserIdFromJwt(req.headers.get('Authorization'))
+    if (userId) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('plan')
@@ -60,7 +57,6 @@ Deno.serve(async (req) => {
           .single()
         userPlan = profile?.plan ?? 'free'
       }
-    }
 
     // Rate limiting
     if (userId) {

@@ -6,11 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, spacing, borderRadius } from '@/constants/theme'
 import { textStyles } from '@/constants/typography'
 
-type TabName = 'home' | 'upload' | 'library' | 'profile'
+type TabName = 'home' | 'chat' | 'library' | 'profile'
 
 const tabs: { name: TabName; label: string; icon: keyof typeof Ionicons.glyphMap; iconActive: keyof typeof Ionicons.glyphMap }[] = [
   { name: 'home', label: 'Accueil', icon: 'home-outline', iconActive: 'home' },
-  { name: 'upload', label: 'Importer', icon: 'cloud-upload-outline', iconActive: 'cloud-upload' },
+  { name: 'chat', label: 'Chat', icon: 'chatbubble-ellipses-outline', iconActive: 'chatbubble-ellipses' },
   { name: 'library', label: 'Bibliothèque', icon: 'library-outline', iconActive: 'library' },
   { name: 'profile', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
 ]
@@ -50,6 +50,8 @@ export default function TabsLayout() {
           }}
         />
       ))}
+      {/* Keep upload.tsx accessible via router.push but hide from tab bar */}
+      <Tabs.Screen name="upload" options={{ href: null }} />
     </Tabs>
   )
 }

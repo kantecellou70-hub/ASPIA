@@ -17,6 +17,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.35.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { getUserIdFromJwt } from '../_shared/auth.ts'
 import { checkMonthlyTokenCap, recordUsage } from '../_shared/ai-tracker.ts'
 import { checkRateLimit } from '../_shared/rate-limiter.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
@@ -74,17 +75,8 @@ Deno.serve(async (req) => {
     const validDifficulty = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium'
     const validCount = [5, 10, 20].includes(question_count) ? question_count : 10
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return jsonResp({ error: 'Non authentifié' }, 401)
-
-    // Auth : token direct (pattern correct pour Edge Functions)
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    )
-    const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if (userError || !user) return jsonResp({ error: 'Non authentifié' }, 401)
+    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -95,7 +87,7 @@ Deno.serve(async (req) => {
     const { data: profileRl } = await supabase
       .from('profiles')
       .select('plan, sessions_used, sessions_limit')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
     const userPlan = profileRl?.plan ?? 'free'
     const sessionsUsed = (profileRl?.sessions_used ?? 0) as number
@@ -110,10 +102,10 @@ Deno.serve(async (req) => {
       }, 403)
     }
 
-    const rl = await checkRateLimit(supabase, user.id, 'quiz', userPlan)
+    const rl = await checkRateLimit(supabase, userId, 'quiz', userPlan)
     if (!rl.allowed) {
       writeAuditLog(supabase, {
-        userId: user.id, action: 'quiz.generate', resourceType: 'circuit', resourceId: circuit_id,
+        userId: userId, action: 'quiz.generate', resourceType: 'circuit', resourceId: circuit_id,
         metadata: { rate_limit_window: rl.window, count: rl.count, limit: rl.limit },
         ipAddress, userAgent, status: 'blocked',
       }).catch((e) => console.warn('audit failed:', e))
@@ -124,7 +116,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Vérification du cap mensuel de tokens ────────────────────────────────
-    const cap = await checkMonthlyTokenCap(supabase, user.id)
+    const cap = await checkMonthlyTokenCap(supabase, userId)
     if (!cap.allowed) {
       return jsonResp({
         error: 'Cap mensuel de tokens atteint',
@@ -142,7 +134,7 @@ Deno.serve(async (req) => {
       .from('circuits')
       .select('*, steps:circuit_steps(*)')
       .eq('id', circuit_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (circuitError || !circuit) return jsonResp({ error: 'Circuit introuvable' }, 404)
@@ -230,7 +222,7 @@ Règles strictes :
 
     // ── Enregistrement de la consommation + audit (non-bloquants) ───────────
     recordUsage(supabase, {
-      userId: user.id,
+      userId: userId,
       model: QUIZ_MODEL,
       operation: 'quiz',
       inputTokens: message.usage.input_tokens,
@@ -238,7 +230,7 @@ Règles strictes :
     }).catch((e) => console.warn('recordUsage quiz failed:', e))
 
     writeAuditLog(supabase, {
-      userId: user.id, action: 'quiz.generate', resourceType: 'circuit', resourceId: circuit_id,
+      userId: userId, action: 'quiz.generate', resourceType: 'circuit', resourceId: circuit_id,
       metadata: { model: QUIZ_MODEL, tokens_in: message.usage.input_tokens, tokens_out: message.usage.output_tokens, question_count: validCount, difficulty: validDifficulty },
       ipAddress, userAgent,
     }).catch((e) => console.warn('audit failed:', e))
@@ -268,7 +260,7 @@ Règles strictes :
       .from('quizzes')
       .insert({
         circuit_id,
-        user_id: user.id,
+        user_id: userId,
         title: quizData.title,
         total_questions: quizData.questions.length,
         time_limit_minutes: quizData.time_limit_minutes ?? null,
@@ -304,7 +296,7 @@ Règles strictes :
     supabase
       .from('profiles')
       .update({ sessions_used: sessionsUsed + 1 })
-      .eq('id', user.id)
+      .eq('id', userId)
       .then(() => {})
       .catch((e: Error) => console.warn('session increment failed:', e))
 

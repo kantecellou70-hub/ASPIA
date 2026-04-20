@@ -14,6 +14,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.35.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { getUserIdFromJwt } from '../_shared/auth.ts'
 import { checkMonthlyTokenCap, recordUsage } from '../_shared/ai-tracker.ts'
 import { checkRateLimit } from '../_shared/rate-limiter.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
@@ -52,20 +53,14 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const authHeader = req.headers.get('Authorization')!
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    )
-    const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if (userError || !user) return jsonResp({ error: 'Non authentifié' }, 401)
+    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
 
     // Rate limiting + vérification sessions
     const { data: profile } = await supabase
       .from('profiles')
       .select('plan, sessions_used, sessions_limit')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
     const userPlan = profile?.plan ?? 'free'
     const sessionsUsed = (profile?.sessions_used ?? 0) as number
@@ -80,10 +75,10 @@ Deno.serve(async (req) => {
       }, 403)
     }
 
-    const rl = await checkRateLimit(supabase, user.id, 'circuit', userPlan)
+    const rl = await checkRateLimit(supabase, userId, 'circuit', userPlan)
     if (!rl.allowed) {
       writeAuditLog(supabase, {
-        userId: user.id, action: 'circuit.generate', resourceType: 'document', resourceId: document_id,
+        userId: userId, action: 'circuit.generate', resourceType: 'document', resourceId: document_id,
         metadata: { rate_limit_window: rl.window, count: rl.count, limit: rl.limit },
         ipAddress, userAgent, status: 'blocked',
       }).catch((e) => console.warn('audit failed:', e))
@@ -98,7 +93,7 @@ Deno.serve(async (req) => {
       .from('documents')
       .select('storage_path, name, file_hash, vault_key_id, is_encrypted')
       .eq('id', document_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (docError || !doc) return jsonResp({ error: 'Document introuvable' }, 404)
@@ -140,7 +135,7 @@ Deno.serve(async (req) => {
       .from('circuits')
       .select('*, steps:circuit_steps(*)')
       .eq('document_id', document_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -155,7 +150,7 @@ Deno.serve(async (req) => {
       .from('documents')
       .select('id')
       .eq('file_hash', fileHash)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .neq('id', document_id)
 
     if (sameHashDocs && sameHashDocs.length > 0) {
@@ -164,7 +159,7 @@ Deno.serve(async (req) => {
         .from('circuits')
         .select('*, steps:circuit_steps(*)')
         .in('document_id', otherDocIds)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -176,7 +171,7 @@ Deno.serve(async (req) => {
     }
 
     // ── 5. Aucun cache : vérification du cap mensuel ──────────────────────────
-    const cap = await checkMonthlyTokenCap(supabase, user.id)
+    const cap = await checkMonthlyTokenCap(supabase, userId)
     if (!cap.allowed) {
       return jsonResp({
         error: 'Cap mensuel de tokens atteint',
@@ -227,7 +222,7 @@ Structure JSON requise (5 à 8 étapes) :
 
     // ── 7. Tracking + audit (non-bloquants) ──────────────────────────────────
     recordUsage(supabase, {
-      userId: user.id,
+      userId: userId,
       model: CIRCUIT_MODEL,
       operation: 'circuit',
       inputTokens: message.usage.input_tokens,
@@ -235,7 +230,7 @@ Structure JSON requise (5 à 8 étapes) :
     }).catch((e) => console.warn('recordUsage circuit failed:', e))
 
     writeAuditLog(supabase, {
-      userId: user.id, action: 'circuit.generate', resourceType: 'document', resourceId: document_id,
+      userId: userId, action: 'circuit.generate', resourceType: 'document', resourceId: document_id,
       metadata: { model: CIRCUIT_MODEL, tokens_in: message.usage.input_tokens, tokens_out: message.usage.output_tokens, cached: false },
       ipAddress, userAgent,
     }).catch((e) => console.warn('audit failed:', e))
@@ -260,7 +255,7 @@ Structure JSON requise (5 à 8 étapes) :
     const { data: circuit, error: circuitError } = await supabase
       .from('circuits')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         document_id,
         title: circuitData.title,
         description: circuitData.description,
@@ -291,7 +286,7 @@ Structure JSON requise (5 à 8 étapes) :
     supabase
       .from('profiles')
       .update({ sessions_used: sessionsUsed + 1 })
-      .eq('id', user.id)
+      .eq('id', userId)
       .then(() => {})
       .catch((e: Error) => console.warn('session increment failed:', e))
 

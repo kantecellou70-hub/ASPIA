@@ -8,6 +8,7 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { getUserIdFromJwt } from '../_shared/auth.ts'
 
 const isSandboxMode = Deno.env.get('KKIAPAY_SANDBOX') === 'true'
 const KKIAPAY_BASE_URL = isSandboxMode
@@ -40,15 +41,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const authHeader = req.headers.get('Authorization')!
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    )
-    const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Non authentifié' }), {
+    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    if (!userId) {
+      return new Response(JSON.stringify({ error: authError ?? 'Non authentifié' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -59,7 +54,7 @@ Deno.serve(async (req) => {
       .from('payments')
       .select('*')
       .eq('kkiapay_transaction_id', transaction_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (paymentError || !payment) {
@@ -126,7 +121,7 @@ Deno.serve(async (req) => {
           sessions_limit: sessionsLimit,
           sessions_used: 0,   // remet le compteur à zéro
         })
-        .eq('id', user.id)
+        .eq('id', userId)
 
       if (profileError) {
         // Non bloquant — on log mais on retourne quand même le paiement

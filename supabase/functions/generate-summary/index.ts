@@ -13,6 +13,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.35.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { getUserIdFromJwt } from '../_shared/auth.ts'
 import { checkMonthlyTokenCap, recordUsage } from '../_shared/ai-tracker.ts'
 import { checkRateLimit } from '../_shared/rate-limiter.ts'
 import { writeAuditLog, extractRequestMeta } from '../_shared/audit.ts'
@@ -37,16 +38,8 @@ Deno.serve(async (req) => {
     const { circuit_id } = await req.json()
     if (!circuit_id) return jsonResp({ error: 'circuit_id requis' }, 400)
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return jsonResp({ error: 'Non authentifié' }, 401)
-
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-    )
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
-    if (userError || !user) return jsonResp({ error: 'Non authentifié' }, 401)
+    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    if (!userId) return jsonResp({ error: authError ?? 'Non authentifié' }, 401)
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -57,14 +50,14 @@ Deno.serve(async (req) => {
     const { data: profileRl } = await supabase
       .from('profiles')
       .select('plan')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
     const userPlan = profileRl?.plan ?? 'free'
 
-    const rl = await checkRateLimit(supabase, user.id, 'summary', userPlan)
+    const rl = await checkRateLimit(supabase, userId, 'summary', userPlan)
     if (!rl.allowed) {
       writeAuditLog(supabase, {
-        userId: user.id, action: 'summary.generate', resourceType: 'circuit', resourceId: circuit_id,
+        userId: userId, action: 'summary.generate', resourceType: 'circuit', resourceId: circuit_id,
         metadata: { rate_limit_window: rl.window, count: rl.count, limit: rl.limit },
         ipAddress, userAgent, status: 'blocked',
       }).catch((e) => console.warn('audit failed:', e))
@@ -75,7 +68,7 @@ Deno.serve(async (req) => {
     }
 
     // Vérification du cap mensuel
-    const cap = await checkMonthlyTokenCap(supabase, user.id)
+    const cap = await checkMonthlyTokenCap(supabase, userId)
     if (!cap.allowed) {
       return jsonResp({
         error: 'Cap mensuel de tokens atteint',
@@ -89,7 +82,7 @@ Deno.serve(async (req) => {
       .from('circuits')
       .select('*, steps:circuit_steps(*)')
       .eq('id', circuit_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (circuitError || !circuit) return jsonResp({ error: 'Circuit introuvable' }, 404)
@@ -142,7 +135,7 @@ Règles :
 
     // Tracking + audit non-bloquants
     recordUsage(supabase, {
-      userId: user.id,
+      userId: userId,
       model: SUMMARY_MODEL,
       operation: 'summary',
       inputTokens: message.usage.input_tokens,
@@ -150,7 +143,7 @@ Règles :
     }).catch((e) => console.warn('recordUsage summary failed:', e))
 
     writeAuditLog(supabase, {
-      userId: user.id, action: 'summary.generate', resourceType: 'circuit', resourceId: circuit_id,
+      userId: userId, action: 'summary.generate', resourceType: 'circuit', resourceId: circuit_id,
       metadata: { model: SUMMARY_MODEL, tokens_in: message.usage.input_tokens, tokens_out: message.usage.output_tokens },
       ipAddress, userAgent,
     }).catch((e) => console.warn('audit failed:', e))

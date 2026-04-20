@@ -3,18 +3,26 @@ import { Platform } from 'react-native'
 /**
  * Adaptateur de stockage compatible Supabase.
  * - Web : localStorage
- * - Native : AsyncStorage v3 avec fallback mémoire si le module natif n'est pas disponible
+ * - Native : AsyncStorage — instance initialisée une seule fois pour éviter les
+ *   races de lock ("lock was released because another request stole it").
  */
 
 const memoryFallback = new Map<string, string>()
 
-async function getAsyncStorage() {
-  try {
-    const mod = await import('@react-native-async-storage/async-storage')
-    return mod.default
-  } catch {
-    return null
-  }
+// Cache the AsyncStorage instance so dynamic import only runs once.
+let _asyncStorage: { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void>; removeItem: (k: string) => Promise<void> } | null = null
+let _asyncStoragePromise: Promise<typeof _asyncStorage> | null = null
+
+function getAsyncStorage() {
+  if (_asyncStorage) return Promise.resolve(_asyncStorage)
+  if (_asyncStoragePromise) return _asyncStoragePromise
+  _asyncStoragePromise = import('@react-native-async-storage/async-storage')
+    .then((mod) => {
+      _asyncStorage = mod.default
+      return _asyncStorage
+    })
+    .catch(() => null)
+  return _asyncStoragePromise
 }
 
 export const supabaseStorage = {

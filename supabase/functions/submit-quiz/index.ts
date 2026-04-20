@@ -7,6 +7,7 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { getUserIdFromJwt } from '../_shared/auth.ts'
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req)
@@ -31,15 +32,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const authHeader = req.headers.get('Authorization')!
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    )
-    const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Non authentifié' }), {
+    const { userId, error: authError } = getUserIdFromJwt(req.headers.get('Authorization'))
+    if (!userId) {
+      return new Response(JSON.stringify({ error: authError ?? 'Non authentifié' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -50,7 +45,7 @@ Deno.serve(async (req) => {
       .from('quiz_attempts')
       .select('*, quiz:quizzes(id, total_questions)')
       .eq('id', attempt_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (attemptError || !attempt) {
